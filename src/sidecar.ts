@@ -1,8 +1,10 @@
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { EventEmitter } from "events";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
+import { log } from "./log";
 import { SidecarCommand, SidecarEvent } from "./types";
 
 export class Sidecar extends EventEmitter {
@@ -10,7 +12,11 @@ export class Sidecar extends EventEmitter {
   private buffer = "";
   private starting: Promise<void> | undefined;
 
-  constructor(private readonly extensionPath: string) {
+  constructor(
+    private readonly extensionPath: string,
+    private readonly logDir: string,
+    private readonly workDir: string
+  ) {
     super();
   }
 
@@ -60,13 +66,26 @@ export class Sidecar extends EventEmitter {
     if (tnzPath) {
       env.TNZ_VIEW_TNZ_PATH = tnzPath;
     }
+    env.TNZ_VIEW_LOG_DIR = this.logDir;
+
+    // The editor's own working directory is often read-only, and tnz writes
+    // its log relative to the process directory.
+    const cwd = ensureDir(this.workDir) ?? os.tmpdir();
 
     const ready = waitForReady(this, 20000);
     const args =
       python === "py" ? ["-3", "-u", script] : ["-u", script];
+    log().info(`starting sidecar: ${python} ${args.join(" ")} (cwd ${cwd})`);
+    if (env.TNZ_VIEW_TNZ_PATH) {
+      log().info(`TNZ_VIEW_TNZ_PATH=${env.TNZ_VIEW_TNZ_PATH}`);
+    }
     const proc = spawn(python, args, {
+      cwd,
       env,
       windowsHide: true,
+    });
+    proc.on("error", (err) => {
+      log().error(`sidecar spawn failed: ${err.message}`);
     });
     this.proc = proc;
     this.buffer = "";
@@ -77,10 +96,12 @@ export class Sidecar extends EventEmitter {
     proc.stderr.on("data", (chunk: string) => {
       const msg = chunk.trim();
       if (msg) {
+        log().error(`sidecar stderr: ${msg}`);
         this.emit("log", msg);
       }
     });
     proc.on("exit", (code, signal) => {
+      log().warn(`sidecar exited (code ${code}, signal ${signal})`);
       this.proc = undefined;
       this.emit("exit", code, signal);
     });
@@ -104,6 +125,19 @@ export class Sidecar extends EventEmitter {
         this.emit("log", `bad sidecar line: ${line} (${err})`);
       }
     }
+  }
+}
+
+function ensureDir(dir: string): string | undefined {
+  if (!dir) {
+    return undefined;
+  }
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  } catch (err) {
+    log().warn(`cannot create ${dir}: ${err}`);
+    return undefined;
   }
 }
 
@@ -164,8 +198,10 @@ async function resolvePython(): Promise<string> {
 
   for (const cmd of candidates) {
     if (await canRun(cmd)) {
+      log().info(`using python: ${cmd}`);
       return cmd;
     }
+    log().debug(`python candidate not usable: ${cmd}`);
   }
   throw new Error(
     "No Python interpreter found. Set tnzView.pythonPath to Python 3.10+."

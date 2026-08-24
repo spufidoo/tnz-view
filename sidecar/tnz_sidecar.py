@@ -19,6 +19,55 @@ _tnz_path = os.environ.get("TNZ_VIEW_TNZ_PATH", "").strip()
 if _tnz_path:
     sys.path.insert(0, _tnz_path)
 
+
+def _configure_tnz_logging() -> None:
+    """Point tnz at a writable log file.
+
+    tnz ships a logging.json whose filename is relative, so it lands in the
+    process working directory. Editors launch us from their install
+    directory, which is typically read-only.
+    """
+    if "TNZ_LOGGING" in os.environ:
+        return
+
+    log_dir = os.environ.get("TNZ_VIEW_LOG_DIR", "").strip()
+    if not log_dir:
+        os.environ["TNZ_LOGGING"] = ""  # disable tnz file logging
+        return
+
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        config = {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {"tnz_format": {"format": "%(asctime)s %(message)s"}},
+            "handlers": {
+                "tnz_log": {
+                    "class": "logging.FileHandler",
+                    "encoding": "utf8",
+                    "filename": os.path.join(log_dir, "tnz.log"),
+                    "formatter": "tnz_format",
+                    "mode": "w",
+                }
+            },
+            "loggers": {
+                "tnz": {
+                    "handlers": ["tnz_log"],
+                    "level": os.environ.get("TNZ_VIEW_LOG_LEVEL", "WARN"),
+                    "propagate": False,
+                }
+            },
+        }
+        config_path = os.path.join(log_dir, "tnz-logging.json")
+        with open(config_path, "w", encoding="utf8") as file:
+            json.dump(config, file)
+        os.environ["TNZ_LOGGING"] = config_path
+    except OSError:
+        os.environ["TNZ_LOGGING"] = ""
+
+
+_configure_tnz_logging()
+
 try:
     from tnz.tnz import Tnz, TnzError
 except ImportError:

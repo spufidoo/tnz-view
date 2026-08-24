@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { log } from "./log";
 import { Sidecar } from "./sidecar";
 import { HostProfile, SidecarEvent } from "./types";
 
@@ -78,7 +79,14 @@ export class SessionPanel {
       this.panel.title = `${this.host.label} (lost)`;
     }
     if (ev.op === "error" && !ev.message.includes("Input Inhibit")) {
-      void vscode.window.showWarningMessage(`TNZ 3270: ${ev.message}`);
+      log().error(`session ${this.host.label}: ${ev.message}`);
+      void vscode.window
+        .showWarningMessage(`TNZ 3270: ${firstLine(ev.message)}`, "Show Log")
+        .then((choice) => {
+          if (choice === "Show Log") {
+            log().show(true);
+          }
+        });
     }
   }
 
@@ -147,6 +155,11 @@ export class SessionPanel {
 </body>
 </html>`;
   }
+}
+
+function firstLine(message: string): string {
+  const line = message.split("\n").find((l) => l.trim()) ?? message;
+  return line.length > 200 ? `${line.slice(0, 200)}…` : line;
 }
 
 function getNonce(): string {

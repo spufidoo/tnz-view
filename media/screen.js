@@ -184,7 +184,9 @@ window.addEventListener("message", (event) => {
     state.lock = msg.lock;
     setOia();
   } else if (msg.op === "error") {
-    document.getElementById("oia-msg").textContent = msg.message || "error";
+    const first = String(msg.message || "error").split("\n").find((l) => l.trim()) || "error";
+    document.getElementById("oia-msg").textContent =
+      first.length > 120 ? `${first.slice(0, 120)}…` : first;
   }
 });
 

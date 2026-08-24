@@ -6,14 +6,20 @@ import {
   promptHost,
   upsertHost,
 } from "./hosts";
+import { initLog, log, reportError } from "./log";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
 import { HostItem, HostTreeProvider } from "./tree";
 import { HostProfile, SidecarEvent } from "./types";
 
 export function activate(context: vscode.ExtensionContext): void {
+  initLog(context);
   const tree = new HostTreeProvider();
-  const sidecar = new Sidecar(context.extensionPath);
+  const sidecar = new Sidecar(
+    context.extensionPath,
+    context.logUri.fsPath,
+    context.globalStorageUri.fsPath
+  );
   const sessions = new Map<string, SessionPanel>();
   let focusedId: string | undefined;
 
@@ -44,7 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
   sidecar.on("log", (msg: string) => {
-    console.log("[tnz-view]", msg);
+    log().info(msg);
   });
   sidecar.on("exit", () => {
     for (const id of sessions.keys()) {
@@ -147,7 +153,8 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           await sidecar.ensureStarted();
         } catch (err) {
-          void vscode.window.showErrorMessage(String(err));
+          reportError("start sidecar", err);
+          tree.setStatus(host.id, "disconnected");
           return;
         }
         tree.setStatus(host.id, "connecting");
@@ -183,7 +190,7 @@ export function activate(context: vscode.ExtensionContext): void {
         try {
           sidecar.send({ op: "disconnect", sessionId: host.id });
         } catch (err) {
-          void vscode.window.showErrorMessage(String(err));
+          reportError("disconnect", err);
         }
         tree.setStatus(host.id, "disconnected");
       }
