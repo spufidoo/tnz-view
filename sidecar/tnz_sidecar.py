@@ -403,6 +403,8 @@ class Session:
             text = text + (" " * (size - len(text)))
         elif len(text) > size:
             text = text[:size]
+        attrs = _effective_attrs(tns.plane_fa, size)
+        text = _mask_hidden(text, tns.plane_fa, attrs, size)
         cur = tns.curadd
         emit(
             {
@@ -414,13 +416,48 @@ class Session:
                 "cursorCol": cur % cols + 1,
                 "lock": bool(tns.pwait or tns.system_lock_wait),
                 "text": text,
-                "fa": b64(tns.plane_fa),
+                "attr": b64(attrs),
                 "fg": b64(tns.plane_fg),
                 "bg": b64(tns.plane_bg),
                 "eh": b64(tns.plane_eh),
                 "extendedColor": bool(tns.extended_color_mode()),
             }
         )
+
+
+def _effective_attrs(plane_fa, size: int) -> bytearray:
+    """Spread each field attribute across the positions it governs.
+
+    tnz stores an attribute byte only at the field's own position; every
+    other position inherits it from the nearest preceding field, wrapping
+    around the buffer.
+    """
+    attrs = bytearray(size)
+    current = 0
+    for i in range(size - 1, -1, -1):
+        if plane_fa[i]:
+            current = plane_fa[i]
+            break
+
+    for i in range(size):
+        value = plane_fa[i]
+        if value:
+            current = value
+        attrs[i] = current
+
+    return attrs
+
+
+def _mask_hidden(text: str, plane_fa, attrs: bytearray, size: int) -> str:
+    """Blank non-display fields (passwords) and field attribute positions.
+
+    Masking here keeps hidden characters inside this process.
+    """
+    chars = list(text)
+    for i in range(size):
+        if plane_fa[i] or attrs[i] & 0x0C == 0x0C:
+            chars[i] = " "
+    return "".join(chars)
 
 
 def get_session(session_id: str) -> Session:

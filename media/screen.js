@@ -1,23 +1,26 @@
 /* global vscode */
 const vscode = acquireVsCodeApi();
 
+// IBM PCOMM default 3270 palette. Colour value 0 means "default".
 const PALETTE = {
   0x00: null,
-  0xf0: "#000000",
-  0xf1: "#3d9eff",
-  0xf2: "#ff5a5a",
-  0xf3: "#ff7ad9",
-  0xf4: "#39d353",
-  0xf5: "#3ee0e0",
-  0xf6: "#e6d325",
-  0xf7: "#f4f4f4",
-  0xf8: "#1a1a1a",
+  0xf0: "#000000", // black
+  0xf1: "#7890f0", // blue
+  0xf2: "#f01818", // red
+  0xf3: "#ff00ff", // pink
+  0xf4: "#24d830", // green
+  0xf5: "#58f0f0", // turquoise
+  0xf6: "#ffff00", // yellow
+  0xf7: "#ffffff", // white
 };
 
-const DEFAULT_FG = "#39d353";
-const DEFAULT_BG = "#0b0f0c";
-const PROTECTED_FG = "#3ee0e0";
-const INTENSE_FG = "#f4f4f4";
+const BLACK = "#000000";
+const RED_FG = "#f01818";
+const GREEN_FG = "#24d830";
+const TURQUOISE_FG = "#58f0f0";
+const WHITE_FG = "#ffffff";
+const DEFAULT_FG = GREEN_FG;
+const DEFAULT_BG = BLACK;
 
 const screenEl = document.getElementById("screen");
 const canvas = document.createElement("canvas");
@@ -31,7 +34,7 @@ let state = {
   cursorCol: 1,
   lock: false,
   text: " ".repeat(24 * 80),
-  fa: new Uint8Array(24 * 80),
+  attr: new Uint8Array(24 * 80),
   fg: new Uint8Array(24 * 80),
   bg: new Uint8Array(24 * 80),
   eh: new Uint8Array(24 * 80),
@@ -54,22 +57,25 @@ function decodeB64(s) {
 }
 
 function cellColor(i) {
-  const fa = state.fa[i] || 0;
+  // 3270 field attribute bits 4-5: 00 normal, 01 detectable,
+  // 10 intensified, 11 non-display.
+  const fa = state.attr[i] || 0;
   const disp = fa & 0x0c;
-  const hidden = disp === 0x0c || disp === 0x08;
-  if (hidden) {
+  if (disp === 0x0c) {
     return { fg: DEFAULT_BG, bg: DEFAULT_BG, hidden: true };
   }
-  const reverse = state.eh[i] === 0xf4;
-  const intense = disp === 0x04;
+  const intense = disp === 0x08;
+  const normal = disp === 0x00;
   const protectedField = (fa & 0x20) !== 0;
   let fg = PALETTE[state.fg[i]] || null;
   let bg = PALETTE[state.bg[i]] || null;
   if (!fg) {
-    if (intense) {
-      fg = INTENSE_FG;
-    } else if (protectedField) {
-      fg = PROTECTED_FG;
+    if (intense && !protectedField) {
+      fg = state.extendedColor ? WHITE_FG : RED_FG;
+    } else if (intense && protectedField) {
+      fg = WHITE_FG;
+    } else if (normal && protectedField) {
+      fg = state.extendedColor ? GREEN_FG : TURQUOISE_FG;
     } else {
       fg = DEFAULT_FG;
     }
@@ -77,7 +83,7 @@ function cellColor(i) {
   if (!bg) {
     bg = DEFAULT_BG;
   }
-  if (reverse) {
+  if (state.eh[i] === 0xf4) {
     return { fg: bg, bg: fg, hidden: false };
   }
   return { fg, bg, hidden: false };
@@ -164,7 +170,7 @@ window.addEventListener("message", (event) => {
       cursorCol: msg.cursorCol,
       lock: msg.lock,
       text: msg.text,
-      fa: decodeB64(msg.fa),
+      attr: decodeB64(msg.attr),
       fg: decodeB64(msg.fg),
       bg: decodeB64(msg.bg),
       eh: decodeB64(msg.eh),

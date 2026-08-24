@@ -1,9 +1,9 @@
 :root {
-  --bg: #0b0f0c;
-  --fg: #39d353;
-  --status-bg: #161b19;
-  --status-fg: #9aa89e;
-  --lock: #ff4d4f;
+  --bg: #000000;
+  --fg: #24d830;
+  --status-bg: #16191b;
+  --status-fg: #9aa4a8;
+  --lock: #f01818;
 }
 
 html,
@@ -34,7 +34,7 @@ body {
 
 #screen canvas {
   image-rendering: pixelated;
-  box-shadow: 0 0 0 1px #1e2a22;
+  box-shadow: 0 0 0 1px #222629;
 }
 
 #status {
@@ -55,5 +55,5 @@ body {
 }
 
 #oia-lock.unlocked {
-  color: #39d353;
+  color: #24d830;
 }

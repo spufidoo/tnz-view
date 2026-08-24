@@ -34,7 +34,7 @@ export interface ScreenEvent {
   cursorCol: number;
   lock: boolean;
   text: string;
-  fa: string;
+  attr: string;
   fg: string;
   bg: string;
   eh: string;
