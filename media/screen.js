@@ -1,4 +1,3 @@
-/* global vscode */
 const vscode = acquireVsCodeApi();
 
 // IBM PCOMM default 3270 palette. Colour value 0 means "default".
@@ -14,6 +13,10 @@ const PALETTE = {
   0xf7: "#ffffff", // white
 };
 
+// Extended highlighting values (0xf1 blink is rendered as normal text).
+const EH_REVERSE = 0xf2;
+const EH_UNDERSCORE = 0xf4;
+
 const BLACK = "#000000";
 const RED_FG = "#f01818";
 const GREEN_FG = "#24d830";
@@ -22,10 +25,19 @@ const WHITE_FG = "#ffffff";
 const DEFAULT_FG = GREEN_FG;
 const DEFAULT_BG = BLACK;
 
+const FONT_STACK =
+  '"Lucida Console", "Cascadia Mono", Consolas, "Courier New", monospace';
+const LINE_RATIO = 1.2;
+
 const screenEl = document.getElementById("screen");
-const canvas = document.createElement("canvas");
-screenEl.appendChild(canvas);
-const ctx = canvas.getContext("2d");
+const gridEl = document.createElement("div");
+gridEl.id = "grid";
+const cursorEl = document.createElement("div");
+cursorEl.id = "cursor";
+gridEl.appendChild(cursorEl);
+screenEl.appendChild(gridEl);
+
+const measure = document.createElement("canvas").getContext("2d");
 
 let state = {
   rows: 24,
@@ -43,6 +55,8 @@ let state = {
 let insertMode = false;
 let cellW = 8;
 let cellH = 16;
+let rowEls = [];
+let rowSig = [];
 
 function decodeB64(s) {
   if (!s) {
@@ -83,72 +97,114 @@ function cellColor(i) {
   if (!bg) {
     bg = DEFAULT_BG;
   }
-  if (state.eh[i] === 0xf4) {
+  if (state.eh[i] === EH_REVERSE) {
     return { fg: bg, bg: fg, hidden: false };
   }
   return { fg, bg, hidden: false };
 }
 
-function fit() {
-  const w = screenEl.clientWidth || 1;
-  const h = screenEl.clientHeight || 1;
-  const aspect = 0.62;
-  let fontH = Math.floor(h / state.rows);
-  let fontW = Math.floor(fontH * aspect);
-  if (fontW * state.cols > w) {
-    fontW = Math.floor(w / state.cols);
-    fontH = Math.floor(fontW / aspect);
+// Built as DOM nodes rather than markup: the webview CSP forbids inline
+// style attributes, but setting style properties from script is allowed.
+function makeSpan(style, text) {
+  const [fg, bg, underline] = style.split("|");
+  const el = document.createElement("span");
+  el.textContent = text;
+  el.style.color = fg;
+  if (bg !== DEFAULT_BG) {
+    el.style.background = bg;
   }
-  fontW = Math.max(fontW, 6);
-  fontH = Math.max(fontH, 10);
-  cellW = fontW;
-  cellH = fontH;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.style.width = `${state.cols * cellW}px`;
-  canvas.style.height = `${state.rows * cellH}px`;
-  canvas.width = Math.floor(state.cols * cellW * dpr);
-  canvas.height = Math.floor(state.rows * cellH * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  paint();
+  if (underline === "1") {
+    el.style.textDecoration = "underline";
+  }
+  return el;
+}
+
+function buildGrid() {
+  for (const el of rowEls) {
+    el.remove();
+  }
+  rowEls = [];
+  rowSig = new Array(state.rows).fill(null);
+  for (let r = 0; r < state.rows; r++) {
+    const row = document.createElement("div");
+    row.className = "row";
+    gridEl.appendChild(row);
+    rowEls.push(row);
+  }
 }
 
 function paint() {
-  ctx.fillStyle = DEFAULT_BG;
-  ctx.fillRect(0, 0, state.cols * cellW, state.rows * cellH);
-  ctx.font = `${Math.floor(cellH * 0.88)}px "Lucida Console", "Cascadia Mono", Consolas, monospace`;
-  ctx.textBaseline = "top";
-  const text = state.text;
+  if (rowEls.length !== state.rows) {
+    buildGrid();
+  }
   for (let r = 0; r < state.rows; r++) {
+    const runs = [];
+    let style = null;
+    let run = "";
     for (let c = 0; c < state.cols; c++) {
       const i = r * state.cols + c;
-      const ch = text[i] || " ";
-      const { fg, bg } = cellColor(i);
-      const x = c * cellW;
-      const y = r * cellH;
-      if (bg !== DEFAULT_BG) {
-        ctx.fillStyle = bg;
-        ctx.fillRect(x, y, cellW, cellH);
-      }
-      const isCursor = r + 1 === state.cursorRow && c + 1 === state.cursorCol;
-      if (isCursor) {
-        ctx.fillStyle = insertMode ? fg : fg;
-        if (insertMode) {
-          ctx.fillRect(x, y + cellH - 2, cellW, 2);
-        } else {
-          ctx.fillStyle = fg;
-          ctx.fillRect(x, y, cellW, cellH);
+      const { fg, bg, hidden } = cellColor(i);
+      const underline = state.eh[i] === EH_UNDERSCORE ? "1" : "0";
+      const key = `${fg}|${bg}|${underline}`;
+      const ch = hidden ? " " : state.text[i] || " ";
+      if (key === style) {
+        run += ch;
+      } else {
+        if (style !== null) {
+          runs.push([style, run]);
         }
-      }
-      ctx.fillStyle = isCursor && !insertMode ? bg : fg;
-      if (ch !== " " && ch !== "\0") {
-        ctx.fillText(ch, x + 1, y + 1);
-      }
-      if (state.eh[i] === 0xf1) {
-        ctx.fillStyle = fg;
-        ctx.fillRect(x, y + cellH - 1, cellW, 1);
+        style = key;
+        run = ch;
       }
     }
+    if (style !== null) {
+      runs.push([style, run]);
+    }
+
+    // Only touch rows that changed, so an active selection survives updates.
+    const signature = runs.map(([s, t]) => `${s}\u0000${t}`).join("\u0001");
+    if (rowSig[r] === signature) {
+      continue;
+    }
+    rowSig[r] = signature;
+    const row = rowEls[r];
+    row.textContent = "";
+    for (const [runStyle, runText] of runs) {
+      row.appendChild(makeSpan(runStyle, runText));
+    }
   }
+  positionCursor();
+}
+
+function positionCursor() {
+  cursorEl.style.width = `${cellW}px`;
+  cursorEl.style.height = insertMode ? "2px" : `${cellH}px`;
+  cursorEl.style.left = `${(state.cursorCol - 1) * cellW}px`;
+  cursorEl.style.top = `${
+    (state.cursorRow - 1) * cellH + (insertMode ? cellH - 2 : 0)
+  }px`;
+}
+
+function fit() {
+  const w = screenEl.clientWidth || 1;
+  const h = screenEl.clientHeight || 1;
+  measure.font = `100px ${FONT_STACK}`;
+  const ratio = measure.measureText("M").width / 100 || 0.6;
+
+  let fontSize = Math.floor(
+    Math.min(w / state.cols / ratio, h / state.rows / LINE_RATIO)
+  );
+  fontSize = Math.max(fontSize, 8);
+  cellW = fontSize * ratio;
+  cellH = Math.round(fontSize * LINE_RATIO);
+
+  gridEl.style.font = `${fontSize}px/${cellH}px ${FONT_STACK}`;
+  gridEl.style.width = `${state.cols * cellW}px`;
+  gridEl.style.height = `${state.rows * cellH}px`;
+  for (const row of rowEls) {
+    row.style.height = `${cellH}px`;
+  }
+  positionCursor();
 }
 
 function setOia() {
@@ -156,13 +212,19 @@ function setOia() {
   lock.textContent = state.lock ? "X" : "A";
   lock.className = state.lock ? "locked" : "unlocked";
   document.getElementById("oia-ins").textContent = insertMode ? "INS" : "REP";
-  document.getElementById("oia-pos").textContent = `${state.cursorRow},${state.cursorCol}`;
-  document.getElementById("oia-size").textContent = `${state.rows}x${state.cols}`;
+  document.getElementById("oia-pos").textContent =
+    `${state.cursorRow},${state.cursorCol}`;
+  document.getElementById("oia-size").textContent =
+    `${state.rows}x${state.cols}`;
+  document.getElementById("oia-color").textContent = state.extendedColor
+    ? "EXT COLOR"
+    : "BASE COLOR";
 }
 
 window.addEventListener("message", (event) => {
   const msg = event.data;
   if (msg.op === "screen") {
+    const resized = msg.rows !== state.rows || msg.cols !== state.cols;
     state = {
       rows: msg.rows,
       cols: msg.cols,
@@ -177,26 +239,48 @@ window.addEventListener("message", (event) => {
       extendedColor: msg.extendedColor,
     };
     document.getElementById("oia-msg").textContent = msg.lock ? "X SYSTEM" : "";
+    if (resized) {
+      buildGrid();
+    }
     fit();
+    paint();
     setOia();
   } else if (msg.op === "status") {
     if (msg.seslost) {
       document.getElementById("oia-msg").textContent = "SESSION LOST";
     } else if (msg.connected) {
-      document.getElementById("oia-msg").textContent = msg.tls ? "TLS" : "CONNECTED";
+      document.getElementById("oia-msg").textContent = msg.tls
+        ? "TLS"
+        : "CONNECTED";
     } else {
       document.getElementById("oia-msg").textContent = "DISCONNECTED";
     }
     state.lock = msg.lock;
     setOia();
   } else if (msg.op === "error") {
-    const first = String(msg.message || "error").split("\n").find((l) => l.trim()) || "error";
+    const first =
+      String(msg.message || "error")
+        .split("\n")
+        .find((l) => l.trim()) || "error";
     document.getElementById("oia-msg").textContent =
       first.length > 120 ? `${first.slice(0, 120)}…` : first;
   }
 });
 
+function hasSelection() {
+  const sel = window.getSelection();
+  return Boolean(sel && !sel.isCollapsed && sel.toString().length);
+}
+
 screenEl.addEventListener("keydown", (e) => {
+  // Let the editor handle clipboard and select-all shortcuts.
+  if ((e.ctrlKey || e.metaKey) && ["c", "a", "v", "x"].includes(e.key.toLowerCase())) {
+    if (e.key.toLowerCase() === "c" && !hasSelection()) {
+      e.preventDefault();
+      vscode.postMessage({ op: "key", type: "aid", value: "attn" });
+    }
+    return;
+  }
   if (e.key === "Tab") {
     e.preventDefault();
     vscode.postMessage({
@@ -206,11 +290,16 @@ screenEl.addEventListener("keydown", (e) => {
     });
     return;
   }
-  if (e.key.startsWith("F") && /^F([1-9]|1[0-2])$/.test(e.key)) {
+  if (/^F([1-9]|1[0-2])$/.test(e.key)) {
     e.preventDefault();
     const n = Number(e.key.slice(1));
     const pf = e.shiftKey ? n + 12 : n;
     vscode.postMessage({ op: "key", type: "aid", value: `pf${pf}` });
+    return;
+  }
+  if (e.key === "Home" && e.ctrlKey) {
+    e.preventDefault();
+    vscode.postMessage({ op: "key", type: "nav", value: "eraseeof" });
     return;
   }
   const nav = {
@@ -218,15 +307,10 @@ screenEl.addEventListener("keydown", (e) => {
     ArrowRight: "right",
     ArrowUp: "up",
     ArrowDown: "down",
-    Home: e.ctrlKey ? null : "home",
+    Home: "home",
     Backspace: "backspace",
     Delete: "delete",
   };
-  if (e.key === "Home" && e.ctrlKey) {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "nav", value: "eraseeof" });
-    return;
-  }
   if (nav[e.key]) {
     e.preventDefault();
     vscode.postMessage({ op: "key", type: "nav", value: nav[e.key] });
@@ -242,7 +326,7 @@ screenEl.addEventListener("keydown", (e) => {
     insertMode = !insertMode;
     vscode.postMessage({ op: "insert", value: insertMode });
     setOia();
-    paint();
+    positionCursor();
     return;
   }
   if (e.key === "Pause") {
@@ -251,15 +335,6 @@ screenEl.addEventListener("keydown", (e) => {
     return;
   }
   if (e.altKey && e.key.toLowerCase() === "a") {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "aid", value: "attn" });
-    return;
-  }
-  if (e.ctrlKey && e.key.toLowerCase() === "c") {
-    const sel = window.getSelection();
-    if (sel && sel.toString()) {
-      return;
-    }
     e.preventDefault();
     vscode.postMessage({ op: "key", type: "aid", value: "attn" });
     return;
@@ -278,34 +353,48 @@ screenEl.addEventListener("keydown", (e) => {
   }
 });
 
-canvas.addEventListener("mousedown", (e) => {
-  screenEl.focus();
-  const rect = canvas.getBoundingClientRect();
+function cellFromEvent(e) {
+  const rect = gridEl.getBoundingClientRect();
   const col = Math.min(
     state.cols,
-    Math.max(1, Math.floor((e.clientX - rect.left) / (rect.width / state.cols)) + 1)
+    Math.max(1, Math.floor((e.clientX - rect.left) / cellW) + 1)
   );
   const row = Math.min(
     state.rows,
-    Math.max(1, Math.floor((e.clientY - rect.top) / (rect.height / state.rows)) + 1)
+    Math.max(1, Math.floor((e.clientY - rect.top) / cellH) + 1)
   );
-  vscode.postMessage({
-    op: "click",
-    row,
-    col,
-    double: e.detail === 2,
-  });
+  return { row, col };
+}
+
+// Dragging selects text; a plain click still positions the 3270 cursor.
+gridEl.addEventListener("mouseup", (e) => {
+  screenEl.focus();
+  if (e.detail === 2) {
+    const { row, col } = cellFromEvent(e);
+    vscode.postMessage({ op: "click", row, col, double: true });
+    return;
+  }
+  if (hasSelection()) {
+    return;
+  }
+  const { row, col } = cellFromEvent(e);
+  vscode.postMessage({ op: "click", row, col, double: false });
 });
 
-screenEl.addEventListener("paste", (e) => {
-  e.preventDefault();
+document.addEventListener("paste", (e) => {
   const text = e.clipboardData ? e.clipboardData.getData("text") : "";
   if (text) {
+    e.preventDefault();
     vscode.postMessage({ op: "paste", text });
   }
 });
 
-window.addEventListener("resize", fit);
-screenEl.focus();
+window.addEventListener("resize", () => {
+  fit();
+});
+
+buildGrid();
 fit();
+paint();
 setOia();
+screenEl.focus();

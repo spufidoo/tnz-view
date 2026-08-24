@@ -148,6 +148,7 @@ export class SessionPanel {
       <span id="oia-ins">REP</span>
       <span id="oia-pos">1,1</span>
       <span id="oia-size">24x80</span>
+      <span id="oia-color">BASE COLOR</span>
       <span id="oia-msg">Connecting…</span>
     </div>
   </div>

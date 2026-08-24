@@ -32,9 +32,25 @@ body {
   cursor: text;
 }
 
-#screen canvas {
-  image-rendering: pixelated;
+#grid {
+  position: relative;
+  white-space: pre;
+  user-select: text;
+  -webkit-user-select: text;
   box-shadow: 0 0 0 1px #222629;
+  font-variant-ligatures: none;
+  font-kerning: none;
+}
+
+.row {
+  white-space: pre;
+}
+
+#cursor {
+  position: absolute;
+  pointer-events: none;
+  background: #ffffff;
+  mix-blend-mode: difference;
 }
 
 #status {

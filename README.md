@@ -53,8 +53,22 @@ Passwords are not stored. Log on in the 3270 screen.
 | Pause | CLEAR |
 | Alt+A or Ctrl+C (no selection) | ATTN |
 | Click / double-click | Cursor / cursor + ENTER |
+| Drag | Select text |
+| Ctrl+C (with selection) | Copy |
+| Ctrl+V | Paste into fields |
 
 The webview scales the font so the whole 3270 screen fits. Resizing the editor does not change rows×cols.
+
+Screen text is rendered as real text, so it can be selected and copied with the
+usual shortcuts. Non-display fields (passwords) are blanked in the sidecar, so
+they never reach the webview and cannot be copied.
+
+## Colour
+
+Basic colours come from the field attribute (protected/intensified). When the host
+sends extended colour orders, tnz switches the screen into extended colour mode and
+the full seven-colour palette plus reverse video and underscore are used. The status
+line shows `BASE COLOR` or `EXT COLOR` so you can tell which set is in play.
 
 ## Layout
 

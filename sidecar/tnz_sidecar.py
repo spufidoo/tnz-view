@@ -233,6 +233,12 @@ class Session:
         tns.lu_name = lu_name
         try:
             tns.encoding = f"cp{code_page}"
+            # Character set 0xF1 carries the APL/line-drawing glyphs ISPF uses
+            # for panel borders. tnz only wires this up for a UTF-8 tty, and
+            # our stdout is a pipe.
+            from tnz import cp310 as _cp310  # registers the codec
+
+            tns.encoding = ("cp310", 0xF1)
         except Exception as exc:
             emit(
                 {
@@ -403,7 +409,7 @@ class Session:
             text = text + (" " * (size - len(text)))
         elif len(text) > size:
             text = text[:size]
-        attrs = _effective_attrs(tns.plane_fa, size)
+        attrs, eff_eh, eff_fg, eff_bg = _effective_planes(tns, size)
         text = _mask_hidden(text, tns.plane_fa, attrs, size)
         cur = tns.curadd
         emit(
@@ -417,35 +423,59 @@ class Session:
                 "lock": bool(tns.pwait or tns.system_lock_wait),
                 "text": text,
                 "attr": b64(attrs),
-                "fg": b64(tns.plane_fg),
-                "bg": b64(tns.plane_bg),
-                "eh": b64(tns.plane_eh),
+                "fg": b64(eff_fg),
+                "bg": b64(eff_bg),
+                "eh": b64(eff_eh),
                 "extendedColor": bool(tns.extended_color_mode()),
             }
         )
 
 
-def _effective_attrs(plane_fa, size: int) -> bytearray:
-    """Spread each field attribute across the positions it governs.
+def _effective_planes(tns, size: int) -> tuple:
+    """Resolve per-position attributes the way a 3270 display does.
 
-    tnz stores an attribute byte only at the field's own position; every
-    other position inherits it from the nearest preceding field, wrapping
-    around the buffer.
+    tnz stores a field attribute only at the field's own position, and
+    extended attributes (colour, highlighting) may be set either on the
+    field or on individual characters. Every position inherits from the
+    nearest preceding field, wrapping around the buffer, and a character
+    value overrides the field value.
     """
+    plane_fa = tns.plane_fa
+    plane_eh = tns.plane_eh
+    plane_fg = tns.plane_fg
+    plane_bg = tns.plane_bg
+
     attrs = bytearray(size)
-    current = 0
+    eff_eh = bytearray(size)
+    eff_fg = bytearray(size)
+    eff_bg = bytearray(size)
+
+    field_pos = -1
     for i in range(size - 1, -1, -1):
         if plane_fa[i]:
-            current = plane_fa[i]
+            field_pos = i
             break
 
-    for i in range(size):
-        value = plane_fa[i]
-        if value:
-            current = value
-        attrs[i] = current
+    f_fa = f_eh = f_fg = f_bg = 0
+    if field_pos >= 0:
+        f_fa = plane_fa[field_pos]
+        f_eh = plane_eh[field_pos]
+        f_fg = plane_fg[field_pos]
+        f_bg = plane_bg[field_pos]
 
-    return attrs
+    for i in range(size):
+        if plane_fa[i]:
+            f_fa = plane_fa[i]
+            f_eh = plane_eh[i]
+            f_fg = plane_fg[i]
+            f_bg = plane_bg[i]
+
+        attrs[i] = f_fa
+        eff_eh[i] = plane_eh[i] or f_eh
+        eff_fg[i] = plane_fg[i] or f_fg
+        eff_bg[i] = plane_bg[i] or f_bg
+
+    return attrs, eff_eh, eff_fg, eff_bg
 
 
 def _mask_hidden(text: str, plane_fa, attrs: bytearray, size: int) -> str:
