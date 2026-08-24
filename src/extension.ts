@@ -3,9 +3,10 @@ import * as vscode from "vscode";
 import {
   deleteHost,
   getHosts,
-  promptHost,
+  newHost,
   upsertHost,
 } from "./hosts";
+import { HostEditorPanel } from "./hostEditor";
 import { initLog, log, reportError } from "./log";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
@@ -71,14 +72,21 @@ export function activate(context: vscode.ExtensionContext): void {
     return undefined;
   };
 
+  // Saving from the editor tab also repaints any live session for that host,
+  // so palette edits show up without reconnecting.
+  const saveHost = async (host: HostProfile): Promise<void> => {
+    await upsertHost(host);
+    tree.refresh();
+    sessions.get(host.id)?.applyProfile(host);
+  };
+
+  const openEditor = (host: HostProfile, isNew: boolean): void => {
+    HostEditorPanel.show(context.extensionUri, host, isNew, saveHost);
+  };
+
   context.subscriptions.push(
-    vscode.commands.registerCommand("tnzView.hosts.add", async () => {
-      const host = await promptHost();
-      if (!host) {
-        return;
-      }
-      await upsertHost(host);
-      tree.refresh();
+    vscode.commands.registerCommand("tnzView.hosts.add", () => {
+      openEditor(newHost(), true);
     }),
     vscode.commands.registerCommand(
       "tnzView.hosts.edit",
@@ -87,12 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!current) {
           return;
         }
-        const updated = await promptHost(current);
-        if (!updated) {
-          return;
-        }
-        await upsertHost(updated);
-        tree.refresh();
+        openEditor(current, false);
       }
     ),
     vscode.commands.registerCommand(
@@ -121,16 +124,14 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!current) {
           return;
         }
-        const updated = await promptHost({
-          ...current,
-          id: randomUUID(),
-          label: `${current.label} copy`,
-        });
-        if (!updated) {
-          return;
-        }
-        await upsertHost({ ...updated, id: randomUUID() });
-        tree.refresh();
+        openEditor(
+          {
+            ...current,
+            id: randomUUID(),
+            label: `${current.label} copy`,
+          },
+          true
+        );
       }
     ),
     vscode.commands.registerCommand(

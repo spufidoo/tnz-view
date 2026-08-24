@@ -228,7 +228,9 @@ class Session:
             os.environ["SESSION_SECLEVEL"] = str(sec_level)
 
         tns = Tnz(name=self.session_id)
-        tns.capable_color = True
+        # Advertising colour in the query reply is what invites the host to
+        # send extended colour orders; without it we only get field colours.
+        tns.capable_color = bool(cmd.get("capableColor", True))
         tns.use_tn3270e = tn3270e
         tns.lu_name = lu_name
         try:

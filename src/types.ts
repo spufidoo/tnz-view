@@ -1,3 +1,29 @@
+/** The eight 3270 colour values plus the screen background. */
+export interface HostColors {
+  background: string;
+  black: string;
+  blue: string;
+  red: string;
+  pink: string;
+  green: string;
+  turquoise: string;
+  yellow: string;
+  white: string;
+}
+
+/** IBM Personal Communications defaults. */
+export const DEFAULT_COLORS: HostColors = {
+  background: "#000000",
+  black: "#000000",
+  blue: "#7890f0",
+  red: "#f01818",
+  pink: "#ff00ff",
+  green: "#24d830",
+  turquoise: "#58f0f0",
+  yellow: "#ffff00",
+  white: "#ffffff",
+};
+
 export interface HostProfile {
   id: string;
   label: string;
@@ -11,6 +37,11 @@ export interface HostProfile {
   codePage: string;
   psSize: string;
   secLevel?: number;
+  /** Advertise colour capability so the host may send extended colour orders. */
+  extendedColor?: boolean;
+  /** Render the extended-highlight blink attribute instead of ignoring it. */
+  blink?: boolean;
+  colors?: HostColors;
 }
 
 export type SessionStatus =

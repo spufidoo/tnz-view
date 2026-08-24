@@ -46,6 +46,16 @@ body {
   white-space: pre;
 }
 
+.blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
 #cursor {
   position: absolute;
   pointer-events: none;

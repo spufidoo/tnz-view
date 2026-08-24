@@ -1,29 +1,43 @@
 const vscode = acquireVsCodeApi();
 
-// IBM PCOMM default 3270 palette. Colour value 0 means "default".
-const PALETTE = {
-  0x00: null,
-  0xf0: "#000000", // black
-  0xf1: "#7890f0", // blue
-  0xf2: "#f01818", // red
-  0xf3: "#ff00ff", // pink
-  0xf4: "#24d830", // green
-  0xf5: "#58f0f0", // turquoise
-  0xf6: "#ffff00", // yellow
-  0xf7: "#ffffff", // white
+// IBM PCOMM defaults, overridden per host from the settings tab.
+const DEFAULT_COLORS = {
+  background: "#000000",
+  black: "#000000",
+  blue: "#7890f0",
+  red: "#f01818",
+  pink: "#ff00ff",
+  green: "#24d830",
+  turquoise: "#58f0f0",
+  yellow: "#ffff00",
+  white: "#ffffff",
 };
 
-// Extended highlighting values (0xf1 blink is rendered as normal text).
+const EH_BLINK = 0xf1;
 const EH_REVERSE = 0xf2;
 const EH_UNDERSCORE = 0xf4;
 
-const BLACK = "#000000";
-const RED_FG = "#f01818";
-const GREEN_FG = "#24d830";
-const TURQUOISE_FG = "#58f0f0";
-const WHITE_FG = "#ffffff";
-const DEFAULT_FG = GREEN_FG;
-const DEFAULT_BG = BLACK;
+const config = window.__TNZ_CONFIG__ || {};
+let colors = { ...DEFAULT_COLORS, ...(config.colors || {}) };
+let blinkEnabled = config.blink === true;
+
+// Colour value 0 means "use the field default".
+let PALETTE = {};
+
+function applyColors() {
+  PALETTE = {
+    0x00: null,
+    0xf0: colors.black,
+    0xf1: colors.blue,
+    0xf2: colors.red,
+    0xf3: colors.pink,
+    0xf4: colors.green,
+    0xf5: colors.turquoise,
+    0xf6: colors.yellow,
+    0xf7: colors.white,
+  };
+  document.body.style.background = colors.background;
+}
 
 const FONT_STACK =
   '"Lucida Console", "Cascadia Mono", Consolas, "Courier New", monospace';
@@ -76,7 +90,7 @@ function cellColor(i) {
   const fa = state.attr[i] || 0;
   const disp = fa & 0x0c;
   if (disp === 0x0c) {
-    return { fg: DEFAULT_BG, bg: DEFAULT_BG, hidden: true };
+    return { fg: colors.background, bg: colors.background, hidden: true };
   }
   const intense = disp === 0x08;
   const normal = disp === 0x00;
@@ -85,17 +99,17 @@ function cellColor(i) {
   let bg = PALETTE[state.bg[i]] || null;
   if (!fg) {
     if (intense && !protectedField) {
-      fg = state.extendedColor ? WHITE_FG : RED_FG;
+      fg = state.extendedColor ? colors.white : colors.red;
     } else if (intense && protectedField) {
-      fg = WHITE_FG;
+      fg = colors.white;
     } else if (normal && protectedField) {
-      fg = state.extendedColor ? GREEN_FG : TURQUOISE_FG;
+      fg = state.extendedColor ? colors.green : colors.turquoise;
     } else {
-      fg = DEFAULT_FG;
+      fg = colors.green;
     }
   }
   if (!bg) {
-    bg = DEFAULT_BG;
+    bg = colors.background;
   }
   if (state.eh[i] === EH_REVERSE) {
     return { fg: bg, bg: fg, hidden: false };
@@ -106,15 +120,18 @@ function cellColor(i) {
 // Built as DOM nodes rather than markup: the webview CSP forbids inline
 // style attributes, but setting style properties from script is allowed.
 function makeSpan(style, text) {
-  const [fg, bg, underline] = style.split("|");
+  const [fg, bg, underline, blink] = style.split("|");
   const el = document.createElement("span");
   el.textContent = text;
   el.style.color = fg;
-  if (bg !== DEFAULT_BG) {
+  if (bg !== colors.background) {
     el.style.background = bg;
   }
   if (underline === "1") {
     el.style.textDecoration = "underline";
+  }
+  if (blink === "1") {
+    el.className = "blink";
   }
   return el;
 }
@@ -145,7 +162,8 @@ function paint() {
       const i = r * state.cols + c;
       const { fg, bg, hidden } = cellColor(i);
       const underline = state.eh[i] === EH_UNDERSCORE ? "1" : "0";
-      const key = `${fg}|${bg}|${underline}`;
+      const blink = blinkEnabled && state.eh[i] === EH_BLINK ? "1" : "0";
+      const key = `${fg}|${bg}|${underline}|${blink}`;
       const ch = hidden ? " " : state.text[i] || " ";
       if (key === style) {
         run += ch;
@@ -257,6 +275,12 @@ window.addEventListener("message", (event) => {
     }
     state.lock = msg.lock;
     setOia();
+  } else if (msg.op === "config") {
+    colors = { ...DEFAULT_COLORS, ...(msg.colors || {}) };
+    blinkEnabled = msg.blink === true;
+    applyColors();
+    rowSig.fill(null);
+    paint();
   } else if (msg.op === "error") {
     const first =
       String(msg.message || "error")
@@ -393,6 +417,7 @@ window.addEventListener("resize", () => {
   fit();
 });
 
+applyColors();
 buildGrid();
 fit();
 paint();

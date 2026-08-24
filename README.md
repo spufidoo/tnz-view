@@ -26,7 +26,9 @@ Open the **TNZ 3270** icon in the activity bar → **Add Host** → Connect.
 
 ## Host profiles
 
-Saved in `tnzView.hosts` (user settings). Fields:
+**Add Host**, or **Edit Host** from a host's context menu, opens a settings tab with
+every field on one page. Ctrl+S saves. Profiles are stored in `tnzView.hosts` (user
+settings), so they can also be edited as JSON.
 
 | Field | Meaning |
 | --- | --- |
@@ -36,6 +38,9 @@ Saved in `tnzView.hosts` (user settings). Fields:
 | codePage | EBCDIC code page, e.g. `037` |
 | luName / tn3270e | LU name requires TN3270E |
 | secLevel | Set to `1` for older TLS stacks (`ZTI_SECLEVEL`) |
+| extendedColor | Advertise colour capability to the host |
+| blink | Render the blink highlight instead of ignoring it |
+| colors | Per-host palette |
 
 Passwords are not stored. Log on in the 3270 screen.
 
@@ -70,11 +75,22 @@ sends extended colour orders, tnz switches the screen into extended colour mode 
 the full seven-colour palette plus reverse video and underscore are used. The status
 line shows `BASE COLOR` or `EXT COLOR` so you can tell which set is in play.
 
+The **Colour** section of the host settings tab controls this:
+
+- **Extended colour** advertises colour capability in the 3270 query reply, which is
+  what invites the host to send extended colour orders. Turning it off keeps the
+  screen on basic field colours, which is useful when a host renders badly in colour.
+- **Render the blink attribute** draws blinking fields instead of showing them as
+  normal text.
+- The palette sets all eight 3270 colour values plus the background, with a live
+  preview. Saving repaints any open session for that host immediately; the extended
+  colour toggle takes effect on the next connect.
+
 ## Layout
 
 ```
-src/           TypeScript extension (tree, sidecar client, session tabs)
-media/         3270 webview CSS/JS
+src/           TypeScript extension (tree, sidecar client, session + settings tabs)
+media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
 ```
 

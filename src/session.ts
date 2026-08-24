@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
-import { HostProfile, SidecarEvent } from "./types";
+import { DEFAULT_COLORS, HostProfile, SidecarEvent } from "./types";
 
 export class SessionPanel {
   static readonly viewType = "tnzView.session";
@@ -12,7 +12,7 @@ export class SessionPanel {
 
   constructor(
     private readonly sidecar: Sidecar,
-    readonly host: HostProfile,
+    public host: HostProfile,
     extensionUri: vscode.Uri,
     private readonly hooks: { onDispose: () => void; onFocus: () => void }
   ) {
@@ -64,6 +64,17 @@ export class SessionPanel {
     this.panel.reveal();
   }
 
+  /** Apply an edited profile. Colours repaint live; the rest needs a reconnect. */
+  applyProfile(host: HostProfile): void {
+    this.host = host;
+    void this.panel.webview.postMessage({
+      op: "config",
+      colors: host.colors ?? DEFAULT_COLORS,
+      blink: host.blink === true,
+    });
+    this.setStatus();
+  }
+
   handleEvent(ev: SidecarEvent): void {
     if (ev.op === "ready") {
       return;
@@ -113,6 +124,7 @@ export class SessionPanel {
       codePage: this.host.codePage,
       psSize: this.host.psSize,
       secLevel: this.host.secLevel,
+      capableColor: this.host.extendedColor !== false,
     });
   }
 
@@ -130,6 +142,10 @@ export class SessionPanel {
       vscode.Uri.joinPath(extensionUri, "media", "screen.js")
     );
     const nonce = getNonce();
+    const config = JSON.stringify({
+      colors: this.host.colors ?? DEFAULT_COLORS,
+      blink: this.host.blink === true,
+    }).replace(/</g, "\\u003c");
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -152,6 +168,7 @@ export class SessionPanel {
       <span id="oia-msg">Connecting…</span>
     </div>
   </div>
+  <script nonce="${nonce}">window.__TNZ_CONFIG__ = ${config};</script>
   <script nonce="${nonce}" src="${js}"></script>
 </body>
 </html>`;
