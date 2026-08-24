@@ -1,0 +1,14 @@
+TNZ 3270 (tnz-view)
+Copyright 2026
+
+This project is a VS Code / Cursor extension that uses IBM's tnz library
+as a runtime dependency for TN3270 protocol handling.
+
+tnz
+Copyright IBM Inc.
+License: Apache License 2.0
+Source: https://github.com/IBM/tnz
+
+tnz is not bundled in this repository. Install it separately:
+
+    pip install tnz ebcdic

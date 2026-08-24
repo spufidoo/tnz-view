@@ -1,0 +1,186 @@
+{
+  "name": "tnz-view",
+  "displayName": "TNZ 3270",
+  "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
+  "version": "0.1.0",
+  "publisher": "mdavage",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "3270",
+    "tn3270",
+    "mainframe",
+    "z/OS",
+    "ISPF"
+  ],
+  "activationEvents": [
+    "onView:tnzView.hosts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "TNZ 3270",
+      "properties": {
+        "tnzView.hosts": {
+          "type": "array",
+          "default": [],
+          "description": "Saved 3270 host connection profiles.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "tnzView.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Python 3.10+ interpreter that has the tnz package installed. Empty uses PATH / py launcher."
+        },
+        "tnzView.tnzPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to a local IBM/tnz checkout added to PYTHONPATH (for development)."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tnzView",
+          "title": "TNZ 3270",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "tnzView": [
+        {
+          "id": "tnzView.hosts",
+          "name": "Hosts"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "tnzView.hosts",
+        "contents": "No 3270 hosts yet.\n[Add Host](command:tnzView.hosts.add)\nRequires Python 3.10+ and `pip install tnz ebcdic`."
+      }
+    ],
+    "commands": [
+      {
+        "command": "tnzView.hosts.add",
+        "title": "Add Host",
+        "icon": "$(add)",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.hosts.edit",
+        "title": "Edit Host",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.hosts.delete",
+        "title": "Delete Host",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.hosts.duplicate",
+        "title": "Duplicate Host",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.hosts.connect",
+        "title": "Connect",
+        "icon": "$(debug-start)",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.hosts.disconnect",
+        "title": "Disconnect",
+        "icon": "$(debug-disconnect)",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.session.clear",
+        "title": "Send CLEAR",
+        "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.session.attn",
+        "title": "Send ATTN",
+        "category": "TNZ 3270"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "tnzView.hosts.add",
+          "when": "view == tnzView.hosts",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "tnzView.hosts.connect",
+          "when": "view == tnzView.hosts && viewItem == host",
+          "group": "inline"
+        },
+        {
+          "command": "tnzView.hosts.disconnect",
+          "when": "view == tnzView.hosts && viewItem == hostConnected",
+          "group": "inline"
+        },
+        {
+          "command": "tnzView.hosts.connect",
+          "when": "view == tnzView.hosts && viewItem == host",
+          "group": "1_session"
+        },
+        {
+          "command": "tnzView.hosts.disconnect",
+          "when": "view == tnzView.hosts && viewItem == hostConnected",
+          "group": "1_session"
+        },
+        {
+          "command": "tnzView.hosts.edit",
+          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "group": "2_edit"
+        },
+        {
+          "command": "tnzView.hosts.duplicate",
+          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "group": "2_edit"
+        },
+        {
+          "command": "tnzView.hosts.delete",
+          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "group": "3_delete"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "tnzView.session.clear",
+        "key": "pause",
+        "when": "tnzView.sessionActive"
+      },
+      {
+        "command": "tnzView.session.attn",
+        "key": "alt+a",
+        "when": "tnzView.sessionActive"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

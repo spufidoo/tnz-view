@@ -1,0 +1,59 @@
+:root {
+  --bg: #0b0f0c;
+  --fg: #39d353;
+  --status-bg: #161b19;
+  --status-fg: #9aa89e;
+  --lock: #ff4d4f;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Lucida Console", "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+#wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+#screen {
+  flex: 1;
+  min-height: 0;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: text;
+}
+
+#screen canvas {
+  image-rendering: pixelated;
+  box-shadow: 0 0 0 1px #1e2a22;
+}
+
+#status {
+  flex: 0 0 22px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--status-bg);
+  color: var(--status-fg);
+  font-size: 12px;
+  user-select: none;
+}
+
+#oia-lock.locked {
+  color: var(--lock);
+  font-weight: 700;
+}
+
+#oia-lock.unlocked {
+  color: #39d353;
+}

@@ -1,0 +1,2 @@
+tnz>=0.1
+ebcdic
