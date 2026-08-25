@@ -80,6 +80,7 @@ export interface StatusEvent {
   lu: string;
   seslost: boolean;
   lock: boolean;
+  reason?: string;
 }
 
 export interface ErrorEvent {

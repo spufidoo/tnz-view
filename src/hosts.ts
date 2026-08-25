@@ -49,7 +49,7 @@ export function normalizeHost(raw: Partial<HostProfile>): HostProfile {
     luName: raw.luName || "",
     tn3270e: raw.tn3270e !== false,
     codePage: String(raw.codePage || "037"),
-    psSize: String(raw.psSize || "24x80"),
+    psSize: String(raw.psSize || "24x80").replace(/\u00d7/g, "x"),
     secLevel: raw.secLevel,
     extendedColor: raw.extendedColor !== false,
     blink: raw.blink === true,

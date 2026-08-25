@@ -265,7 +265,9 @@ window.addEventListener("message", (event) => {
     setOia();
   } else if (msg.op === "status") {
     if (msg.seslost) {
-      document.getElementById("oia-msg").textContent = "SESSION LOST";
+      document.getElementById("oia-msg").textContent = msg.reason
+        ? `SESSION LOST — ${msg.reason}`
+        : "SESSION LOST";
     } else if (msg.connected) {
       document.getElementById("oia-msg").textContent = msg.tls
         ? "TLS"

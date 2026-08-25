@@ -79,7 +79,7 @@ export class HostEditorPanel {
       luName: String(raw.luName || "").trim(),
       tn3270e: raw.tn3270e !== false,
       codePage: String(raw.codePage || "037").trim() || "037",
-      psSize: String(raw.psSize || "24x80"),
+      psSize: String(raw.psSize || "24x80").replace(/\u00d7/g, "x"),
       secLevel:
         raw.secLevel === undefined || raw.secLevel === null
           ? undefined
@@ -145,14 +145,20 @@ export class HostEditorPanel {
       <input id="f-port" type="number" min="1" max="65535" />
 
       <label for="f-psSize">Screen size</label>
-      <select id="f-psSize">
-        <option value="24x80">24 x 80 (Model 2)</option>
-        <option value="32x80">32 x 80 (Model 3)</option>
-        <option value="43x80">43 x 80 (Model 4)</option>
-        <option value="27x132">27 x 132 (Model 5)</option>
-        <option value="24x132">24 x 132</option>
-        <option value="62x160">62 x 160</option>
-      </select>
+      <input id="f-psSize" type="text" list="pssizes" placeholder="rows x cols, e.g. 30x133" />
+      <datalist id="pssizes">
+        <option value="24x80">Model 2</option>
+        <option value="32x80">Model 3</option>
+        <option value="43x80">Model 4</option>
+        <option value="27x132">Model 5</option>
+        <option value="24x132"></option>
+        <option value="62x160"></option>
+      </datalist>
+
+      <span class="label-spacer"></span>
+      <p class="hint">Must match the emulator that started the session. The
+      columns have to match exactly; the rows may be higher. Any size is
+      allowed, not just the listed models.</p>
 
       <label for="f-codePage">Code page</label>
       <input id="f-codePage" type="text" list="codepages" />
@@ -260,6 +266,23 @@ function validate(raw: Partial<HostProfile>): string | undefined {
   const codePage = String(raw.codePage || "").trim();
   if (codePage && !/^\d{3,5}$/.test(codePage)) {
     return "Code page must be numeric, for example 037.";
+  }
+  return validatePsSize(String(raw.psSize || ""));
+}
+
+function validatePsSize(value: string): string | undefined {
+  const match = /^(\d+)\s*[xX\u00d7]\s*(\d+)$/.exec(value.trim());
+  if (!match) {
+    return "Screen size must be rows x cols, for example 30x133.";
+  }
+  const rows = Number(match[1]);
+  const cols = Number(match[2]);
+  if (rows < 24 || cols < 80) {
+    return "Screen size must be at least 24x80.";
+  }
+  // tnz addresses the buffer with 14 bits.
+  if (rows > 204 || cols > 682 || rows * cols > 16383) {
+    return "Screen size is too large for a 3270 buffer (max 16383 cells).";
   }
   return undefined;
 }

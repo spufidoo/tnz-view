@@ -34,7 +34,7 @@ settings), so they can also be edited as JSON.
 | --- | --- |
 | host / port | Default ports: 992 TLS, 23 plain |
 | secure / verifyCert | TLS and certificate checking |
-| psSize | `24x80`, `32x80`, `43x80`, `27x132`, `62x160`, … |
+| psSize | Any `rowsxcols`, not just the standard models |
 | codePage | EBCDIC code page, e.g. `037` |
 | luName / tn3270e | LU name requires TN3270E |
 | secLevel | Set to `1` for older TLS stacks (`ZTI_SECLEVEL`) |
@@ -43,6 +43,19 @@ settings), so they can also be edited as JSON.
 | colors | Per-host palette |
 
 Passwords are not stored. Log on in the 3270 screen.
+
+### Screen size
+
+`psSize` must match the emulator that started the session, because the host formats
+for the screen size in its LU definition and does not renegotiate it when resuming
+one. The columns have to match exactly, since a buffer address is mapped to a row
+and column using the column count; the rows may be higher, which just leaves blank
+lines at the bottom. Any size is accepted, not only the standard models — a PCOMM
+session showing `30x133` needs exactly `30x133` here.
+
+If the size is too small, the host writes past the end of the buffer and tnz drops
+the session. The reported address is the *first* one past the end, so it is only a
+lower bound and raising the size one model at a time will keep failing.
 
 ## Keys (3270 tab focused)
 

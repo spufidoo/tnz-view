@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import traceback
@@ -100,6 +101,54 @@ def b64(data: bytes | bytearray) -> str:
     return base64.b64encode(bytes(data)).decode("ascii")
 
 
+# Standard 3270 screen sizes, smallest buffer first. 132- and 160-column
+# models come after the 80-column ones so a suggestion keeps the current
+# width where it can.
+_MODELS = ((24, 80), (32, 80), (43, 80), (27, 132), (24, 132), (62, 160))
+
+
+def _suggest_sizes(address: int, cols: int) -> list[str]:
+    """Standard sizes big enough to hold the address the host asked for."""
+    need = address + 1
+    same = [f"{r}x{c}" for r, c in _MODELS if c == cols and r * c >= need]
+    wider = [f"{r}x{c}" for r, c in _MODELS if c != cols and r * c >= need]
+    return same[:1] + wider[:1] or ["62x160"]
+
+
+def _seslost_reason(seslost, tns) -> str:
+    """Describe why tnz dropped the session.
+
+    tnz sets seslost to True for a clean close, or to a sys.exc_info()
+    tuple when it gave up on the data stream.
+    """
+    if not isinstance(seslost, tuple) or len(seslost) != 3:
+        return ""
+
+    exc = seslost[1]
+    if exc is None:
+        return ""
+
+    reason = f"{type(exc).__name__}: {exc}"
+
+    # The host addressed a row we do not have, which usually means the screen
+    # size here is smaller than the session the host is resuming.
+    match = re.search(r"Invalid address: (\d+)", str(exc))
+    if match:
+        address = int(match.group(1))
+        cols = tns.maxcol or 80
+        options = " or ".join(_suggest_sizes(address, cols))
+        # This is the first address past the end of the buffer, so it is only
+        # a lower bound: the host's screen may be larger still. Raising the
+        # size one model at a time just moves the failure.
+        reason += (
+            f". The host wrote past the end of this {tns.maxrow}x{cols}"
+            f" screen. Set the screen size to match the emulator that"
+            f" started the session: the columns must match exactly and the"
+            f" rows must be at least as many. Otherwise try {options}."
+        )
+    return reason
+
+
 NAV = {
     "left": "key_curleft",
     "right": "key_curright",
@@ -167,6 +216,15 @@ class Session:
                     continue
 
                 if tns.seslost:
+                    reason = _seslost_reason(tns.seslost, tns)
+                    if reason:
+                        emit(
+                            {
+                                "op": "error",
+                                "sessionId": self.session_id,
+                                "message": f"session lost: {reason}",
+                            }
+                        )
                     emit(
                         {
                             "op": "status",
@@ -176,6 +234,7 @@ class Session:
                             "lu": tns.lu_name or "",
                             "seslost": True,
                             "lock": True,
+                            "reason": reason,
                         }
                     )
                     try:
@@ -239,7 +298,8 @@ class Session:
         verify = bool(cmd.get("verifyCert", True))
         lu_name = (cmd.get("luName") or "").strip() or None
         code_page = str(cmd.get("codePage") or "037")
-        ps_size = str(cmd.get("psSize") or "24x80")
+        # A typographic multiplication sign is an easy thing to paste in.
+        ps_size = str(cmd.get("psSize") or "24x80").replace("\u00d7", "x")
         sec_level = cmd.get("secLevel")
         tn3270e = bool(cmd.get("tn3270e", True))
 
@@ -275,8 +335,16 @@ class Session:
 
             rows, cols = _util.session_ps_size(ps_size)
             tns.amaxrow, tns.amaxcol = rows, cols
-        except Exception:
-            pass
+        except Exception as exc:
+            # Falling back to 24x80 silently leaves the host free to address
+            # rows we do not have, which shows up much later as a lost session.
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"screen size {ps_size}: {exc}",
+                }
+            )
 
         try:
             tns.connect(host, int(port), secure=secure, verifycert=verify)
