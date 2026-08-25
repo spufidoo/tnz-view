@@ -9,6 +9,36 @@ import * as vscode from "vscode";
  */
 export type Keymap = Record<string, string>;
 
+/** AID names the sidecar accepts. */
+export const AID_NAMES = [
+  "enter",
+  "clear",
+  "attn",
+  "pa1",
+  "pa2",
+  "pa3",
+  ...Array.from({ length: 24 }, (_, i) => `pf${i + 1}`),
+];
+
+/** Cursor and edit names the sidecar accepts. */
+export const NAV_NAMES = [
+  "left",
+  "right",
+  "up",
+  "down",
+  "home",
+  "end",
+  "wordleft",
+  "wordright",
+  "tab",
+  "backtab",
+  "newline",
+  "backspace",
+  "delete",
+  "eraseeof",
+  "eraseinput",
+];
+
 function pfKeys(): Keymap {
   const map: Keymap = {};
   for (let n = 1; n <= 12; n++) {
@@ -110,7 +140,8 @@ export function describeKeymap(map: Keymap): { action: string; label: string; ch
 
   const rows = [...byAction.entries()].map(([action, chords]) => ({
     action,
-    label: ACTION_LABELS[action] ?? pfLabel(action) ?? action,
+    label:
+      ACTION_LABELS[action] ?? pfLabel(action) ?? macroLabel(action) ?? action,
     chords: chords.sort(),
   }));
   rows.sort((a, b) => order(a.action) - order(b.action) || a.label.localeCompare(b.label));
@@ -120,6 +151,12 @@ export function describeKeymap(map: Keymap): { action: string; label: string; ch
 function pfLabel(action: string): string | undefined {
   const match = /^aid:pf(\d+)$/.exec(action);
   return match ? `PF${match[1]}` : undefined;
+}
+
+function macroLabel(action: string): string | undefined {
+  return action.startsWith("macro:")
+    ? `Macro “${action.slice("macro:".length)}”`
+    : undefined;
 }
 
 function order(action: string): number {
@@ -132,6 +169,9 @@ function order(action: string): number {
   }
   if (action.startsWith("nav:")) {
     return 2000;
+  }
+  if (action.startsWith("macro:")) {
+    return 4000;
   }
   return 3000;
 }

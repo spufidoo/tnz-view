@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
+import { resolveMacro } from "./macros";
 import { buildParms } from "./transfer";
 import {
   DEFAULT_COLORS,
@@ -74,6 +75,8 @@ export class SessionPanel {
     this.panel.webview.onDidReceiveMessage((msg: { op: string; [k: string]: unknown }) => {
       if (msg.op === "key" || msg.op === "click" || msg.op === "paste") {
         this.sidecar.send({ ...msg, sessionId: this.sessionId });
+      } else if (msg.op === "macro") {
+        this.runMacro(String(msg.name ?? ""));
       } else if (msg.op === "insert") {
         this.insertMode = Boolean(msg.value);
         this.setStatus();
@@ -156,6 +159,20 @@ export class SessionPanel {
           }
         });
     }
+  }
+
+  /** Expand a named macro and hand the steps to the sidecar to replay. */
+  runMacro(name: string): void {
+    const steps = resolveMacro(name);
+    if (!steps) {
+      return;
+    }
+    this.sidecar.send({
+      op: "macro",
+      sessionId: this.sessionId,
+      name,
+      steps,
+    });
   }
 
   sendAid(aid: string): void {

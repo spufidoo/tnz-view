@@ -80,8 +80,15 @@ lower bound and raising the size one model at a time will keep failing.
 
 Every binding can be changed with the `tnzView.keymap` setting, and open sessions
 pick up edits immediately. **TNZ 3270: Show Keyboard Map** lists what is in
-effect. See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action
-name, and the keys that are reserved.
+effect.
+
+Keys can also play macros — text with `[action]` markers in it, such as
+`=3.4[enter][wait]MY.JCL[enter]`. `[wait]` holds until the host unlocks the
+keyboard, so a macro follows the host rather than guessing at delays. Define
+them in `tnzView.macros` and run them from a key or **TNZ 3270: Run Macro**.
+
+See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action name,
+the macro markers, and the keys that are reserved.
 
 The webview scales the font so the whole 3270 screen fits. Resizing the editor does not change rows×cols.
 

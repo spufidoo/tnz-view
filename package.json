@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "repository": {
@@ -46,9 +46,27 @@
         "tnzView.keymap": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Override 3270 key bindings. Each entry maps a chord such as `alt+1` to an action: `aid:<name>` (enter, clear, attn, pa1-3, pf1-24), `nav:<name>` (tab, backtab, left, right, up, down, home, end, wordleft, wordright, backspace, delete, eraseeof, eraseinput, newline) or `local:<name>` (insert, reset). An empty value removes a default binding. Run **TNZ 3270: Show Keyboard Map** to see the result, or see [docs/KEYMAP.md](https://github.com/spufidoo/tnz-view/blob/main/docs/KEYMAP.md).",
+          "markdownDescription": "Override 3270 key bindings. Each entry maps a chord such as `alt+1` to an action: `aid:<name>` (enter, clear, attn, pa1-3, pf1-24), `nav:<name>` (tab, backtab, left, right, up, down, home, end, wordleft, wordright, backspace, delete, eraseeof, eraseinput, newline), `local:<name>` (insert, reset) or `macro:<name>` for an entry in `#tnzView.macros#`. An empty value removes a default binding. Run **TNZ 3270: Show Keyboard Map** to see the result, or see [docs/KEYMAP.md](https://github.com/spufidoo/tnz-view/blob/main/docs/KEYMAP.md).",
           "additionalProperties": {
             "type": "string"
+          }
+        },
+        "tnzView.macros": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A macro is text with `[action]` markers in it, for example `TSO[enter][wait]LISTC[enter]`. `[[` is a literal `[`. Markers are AID names (`[enter]`, `[pf3]`, `[pa1]`, `[clear]`), cursor keys (`[tab]`, `[home]`, `[eraseeof]`), `[wait]` or `[wait:5000]` to wait for the host, and `[pause:500]` for a fixed delay. Long macros may be an array of strings, which are joined. Do not put passwords here; settings files are not encrypted and sync between machines.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           }
         },
         "tnzView.transfer.idleTimeout": {
@@ -142,6 +160,11 @@
         "category": "TNZ 3270"
       },
       {
+        "command": "tnzView.session.runMacro",
+        "title": "Run Macro",
+        "category": "TNZ 3270"
+      },
+      {
         "command": "tnzView.session.download",
         "title": "Download File from Host (IND$FILE)",
         "category": "TNZ 3270",
@@ -222,6 +245,10 @@
         },
         {
           "command": "tnzView.session.attn",
+          "when": "tnzView.sessionActive"
+        },
+        {
+          "command": "tnzView.session.runMacro",
           "when": "tnzView.sessionActive"
         }
       ]

@@ -343,9 +343,13 @@ function setInsert(on) {
 }
 
 function runAction(action) {
-  const [kind, value] = action.split(":");
+  const sep = action.indexOf(":");
+  const kind = sep === -1 ? action : action.slice(0, sep);
+  const value = sep === -1 ? "" : action.slice(sep + 1);
   if (kind === "aid" || kind === "nav") {
     vscode.postMessage({ op: "key", type: kind, value });
+  } else if (kind === "macro") {
+    vscode.postMessage({ op: "macro", name: value });
   } else if (kind === "local" && value === "insert") {
     setInsert(!insertMode);
   } else if (kind === "local" && value === "reset") {

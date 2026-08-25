@@ -327,6 +327,8 @@ class Session:
             self._paste(cmd)
         elif op == "transfer":
             self._transfer(cmd)
+        elif op == "macro":
+            self._macro(cmd)
         else:
             emit(
                 {
@@ -532,6 +534,70 @@ class Session:
             )
             return
         self._emit_screen()
+
+    def _wait_unlock(self, tns, timeout_ms: float) -> None:
+        """Block until the host gives the keyboard back.
+
+        Sending an AID sets both inhibit flags, so this is what makes a macro
+        step wait for the screen the previous step asked for.
+        """
+        deadline = time.monotonic() + timeout_ms / 1000
+        while tns.pwait or tns.system_lock_wait:
+            if tns.seslost:
+                raise TnzError("the session was lost")
+            if time.monotonic() > deadline:
+                raise TnzError(
+                    f"the host did not respond within {timeout_ms:g} ms"
+                )
+            tns.wait(timeout=0.1)
+
+    def _macro(self, cmd: dict) -> None:
+        """Replay a parsed macro on the session thread.
+
+        Running here rather than feeding the steps in one at a time keeps
+        typing and AIDs in order and stops the user's keystrokes interleaving
+        with the macro's.
+        """
+        tns = self.tns
+        if tns is None:
+            return
+        name = cmd.get("name") or ""
+        steps = cmd.get("steps") or []
+        index = 0
+        try:
+            for index, step in enumerate(steps, 1):
+                kind = step.get("kind")
+                if kind == "text":
+                    tns.key_data(step.get("value") or "")
+                elif kind == "aid":
+                    method = AID.get(str(step.get("value")).lower())
+                    if not method:
+                        raise TnzError(f"unknown aid {step.get('value')}")
+                    getattr(tns, method)()
+                elif kind == "nav":
+                    method = NAV.get(str(step.get("value")))
+                    if not method:
+                        raise TnzError(f"unknown nav {step.get('value')}")
+                    getattr(tns, method)()
+                elif kind == "wait":
+                    self._wait_unlock(tns, float(step.get("ms") or 10000))
+                    self._emit_screen()
+                elif kind == "pause":
+                    time.sleep(float(step.get("ms") or 0) / 1000)
+                else:
+                    raise TnzError(f"unknown macro step {kind}")
+        except (TnzError, ValueError) as exc:
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"macro {name} stopped at step {index}: {exc}",
+                }
+            )
+        try:
+            self._emit_screen()
+        except Exception:
+            pass
 
     def _transfer(self, cmd: dict) -> None:
         """Run IND$FILE on the session thread.

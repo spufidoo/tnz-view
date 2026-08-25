@@ -14,6 +14,7 @@ action:
   "escape": "aid:pa2",
   "ctrl+shift+e": "nav:eraseinput",
   "shift+escape": "local:reset",
+  "ctrl+l": "macro:listcat",
   "pause": ""
 }
 ```
@@ -90,6 +91,11 @@ Reset sends nothing to the host, so it clears the view's own state but not a loc
 the host is holding. If the status line shows `X SYSTEM`, the host has the
 keyboard and only the host can give it back.
 
+### `macro:` — play a named macro
+
+`macro:<name>` runs an entry from `tnzView.macros`. See
+[macros](#macros) below.
+
 ## Defaults
 
 | Chord | Action |
@@ -114,6 +120,56 @@ keyboard and only the host can give it back.
 
 Defaults follow [zti](https://github.com/IBM/tnz), the terminal front end shipped
 with tnz, wherever the two overlap.
+
+## Macros
+
+A macro is a string of text with `[action]` markers in it, the notation
+emulators have used for this for decades. Define them in `tnzView.macros` and
+play them from a key or from **TNZ 3270: Run Macro**.
+
+```json
+"tnzView.macros": {
+  "listcat": "LISTC[enter]",
+  "back to primary": "[pf3][pf3][pf3]",
+  "edit jcl": ["=3.4[enter][wait]", "MY.JCL[enter]"]
+},
+"tnzView.keymap": {
+  "ctrl+l": "macro:listcat",
+  "ctrl+alt+p": "macro:back to primary"
+}
+```
+
+An array of strings is joined without a separator, which is only there to keep
+long macros readable.
+
+### Markers
+
+| Marker | Meaning |
+| --- | --- |
+| `[enter]` `[clear]` `[attn]` `[pa1]`–`[pa3]` `[pf1]`–`[pf24]` | Send an AID |
+| `[tab]` `[home]` `[eraseeof]` and the rest of the `nav:` names | Cursor and edit keys |
+| `[wait]` | Wait for the host to unlock the keyboard, up to 10 seconds |
+| `[wait:5000]` | The same, with an explicit timeout in milliseconds |
+| `[pause:500]` | Wait a fixed number of milliseconds |
+| `[[` | A literal `[` |
+
+Anything outside the markers is typed into the current field.
+
+### Waiting
+
+Use `[wait]`, not `[pause:...]`, after anything that talks to the host. Sending
+an AID locks the keyboard until the host replies, so `[wait]` returns as soon as
+the new screen arrives rather than guessing at a duration.
+
+A macro runs to completion on the session thread, so your keystrokes cannot
+interleave with it. If a step fails or a `[wait]` times out, the macro stops
+there and the status line names the step number.
+
+### Passwords
+
+Do not put passwords in a macro. Settings files are stored in plain text and
+sync between machines. Type the password yourself; a macro can still get you to
+the right screen and leave the cursor in the field.
 
 ## Reserved keys
 

@@ -9,6 +9,7 @@ import {
 import { HostEditorPanel } from "./hostEditor";
 import { refreshKeymapView, showKeymap } from "./keymapView";
 import { initLog, log, reportError } from "./log";
+import { getMacros } from "./macros";
 import { download, upload } from "./transfer";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
@@ -214,6 +215,33 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("tnzView.showKeymap", () => {
       showKeymap(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("tnzView.session.runMacro", async () => {
+      const panel = focusedId ? sessions.get(focusedId) : undefined;
+      if (!panel) {
+        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        return;
+      }
+      const names = Object.keys(getMacros());
+      if (!names.length) {
+        const choice = await vscode.window.showInformationMessage(
+          "TNZ 3270: no macros defined.",
+          "Edit Settings"
+        );
+        if (choice === "Edit Settings") {
+          await vscode.commands.executeCommand(
+            "workbench.action.openSettings",
+            "tnzView.macros"
+          );
+        }
+        return;
+      }
+      const name = await vscode.window.showQuickPick(names.sort(), {
+        title: "Run macro",
+      });
+      if (name) {
+        panel.runMacro(name);
+      }
     }),
     vscode.commands.registerCommand("tnzView.session.download", async () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
