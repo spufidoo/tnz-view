@@ -90,8 +90,34 @@ export interface ErrorEvent {
   lock?: boolean;
 }
 
+export interface TransferEvent {
+  op: "transfer";
+  sessionId: string;
+  transferId: string;
+  state: "start" | "done";
+  ok?: boolean;
+  message?: string;
+  direction?: TransferDirection;
+  localPath?: string;
+  parms?: string;
+}
+
 export type SidecarEvent =
   | { op: "ready" }
   | ScreenEvent
   | StatusEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | TransferEvent;
+
+export type TransferDirection = "download" | "upload";
+
+/** A pending IND$FILE transfer, before it is turned into a command. */
+export interface TransferRequest {
+  direction: TransferDirection;
+  localPath: string;
+  hostFile: string;
+  /** ASCII CRLF translation. Off means a byte-for-byte binary copy. */
+  text: boolean;
+  /** Extra IND$FILE options, e.g. `RECFM(V) LRECL(255)`. */
+  options: string;
+}

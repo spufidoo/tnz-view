@@ -287,6 +287,10 @@ window.addEventListener("message", (event) => {
     applyColors();
     rowSig.fill(null);
     paint();
+  } else if (msg.op === "transfer") {
+    // The screen does not update while IND$FILE runs, so say why.
+    document.getElementById("oia-msg").textContent =
+      msg.state === "start" ? "FILE TRANSFER IN PROGRESS" : "";
   } else if (msg.op === "error") {
     const first =
       String(msg.message || "error")

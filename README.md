@@ -89,6 +89,21 @@ Screen text is rendered as real text, so it can be selected and copied with the
 usual shortcuts. Non-display fields (passwords) are blanked in the sidecar, so
 they never reach the webview and cannot be copied.
 
+## File transfer
+
+**TNZ 3270: Download File from Host** and **Upload File to Host**, or the
+buttons on the session tab, transfer files with IND$FILE. The session must be
+at a ready prompt (TSO READY, ISPF option 6, CMS) because the command is typed
+at the cursor.
+
+Text transfers use `ASCII CRLF`, which tnz translates itself rather than
+trusting the host's tables; binary copies bytes unchanged. The screen freezes
+for the duration and shows `FILE TRANSFER IN PROGRESS`, since tnz owns the
+session while a transfer runs.
+
+See [docs/TRANSFER.md](docs/TRANSFER.md) for host file name formats, RECFM and
+LRECL options, timeouts, and what the failure messages mean.
+
 ## Colour
 
 Basic colours come from the field attribute (protected/intensified). When the host
@@ -113,7 +128,7 @@ The **Colour** section of the host settings tab controls this:
 src/           TypeScript extension (tree, sidecar client, session + settings tabs)
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
-docs/          Keyboard map reference
+docs/          Keyboard map and file transfer references
 ```
 
 Apache-2.0. See `NOTICE` for the tnz attribution.

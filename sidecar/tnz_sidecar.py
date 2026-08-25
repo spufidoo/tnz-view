@@ -13,6 +13,7 @@ import queue
 import re
 import sys
 import threading
+import time
 import traceback
 
 # The protocol is UTF-8 in both directions. On Windows a pipe defaults to the
@@ -78,7 +79,7 @@ def _configure_tnz_logging() -> None:
 _configure_tnz_logging()
 
 try:
-    from tnz.tnz import Tnz, TnzError
+    from tnz.tnz import Tnz, TnzError, TnzTransferError
 except ImportError:
     sys.stderr.write(
         "tnz is not installed. Run: pip install tnz ebcdic\n"
@@ -113,6 +114,48 @@ def _suggest_sizes(address: int, cols: int) -> list[str]:
     same = [f"{r}x{c}" for r, c in _MODELS if c == cols and r * c >= need]
     wider = [f"{r}x{c}" for r, c in _MODELS if c != cols and r * c >= need]
     return same[:1] + wider[:1] or ["62x160"]
+
+
+def _deadline_wait(tns, idle_seconds: float):
+    """A tns.wait that gives up once the transfer stops making progress.
+
+    get_file and put_file poll wait() until the host sends a DDM message. If
+    IND$FILE never starts -- the command was typed somewhere that is not a
+    ready prompt, so it went into a field instead -- that loop spins forever
+    and takes the session thread with it. Raising from wait() unwinds through
+    their try/finally, which is the only way in from outside.
+    """
+    original = type(tns).wait
+    deadline = time.monotonic() + idle_seconds
+
+    def wait(timeout=None, zti=None, key=None):
+        nonlocal deadline
+        if tns.ddm_in_progress():
+            deadline = time.monotonic() + idle_seconds
+        elif time.monotonic() > deadline:
+            raise TnzTransferError(
+                f"no response from IND$FILE for {idle_seconds:g} seconds"
+            )
+        return original(tns, timeout=timeout, zti=zti, key=key)
+
+    return wait
+
+
+def _transfer_reason(exc: Exception, tns) -> str:
+    """Turn an IND$FILE failure into something actionable."""
+    text = str(exc).strip()
+    if tns.seslost:
+        return "the session was lost during the transfer"
+    if text in ("", "None"):
+        return "the transfer ended without a completion message from IND$FILE"
+    if "no response from IND$FILE" in text:
+        return (
+            text
+            + ". The command is typed at the cursor, so the session must be"
+            " at a ready prompt (TSO READY, ISPF option 6, or CMS) rather"
+            " than in a panel or editor."
+        )
+    return text
 
 
 def _seslost_reason(seslost, tns) -> str:
@@ -282,6 +325,8 @@ class Session:
             self._click(cmd)
         elif op == "paste":
             self._paste(cmd)
+        elif op == "transfer":
+            self._transfer(cmd)
         else:
             emit(
                 {
@@ -487,6 +532,81 @@ class Session:
             )
             return
         self._emit_screen()
+
+    def _transfer(self, cmd: dict) -> None:
+        """Run IND$FILE on the session thread.
+
+        tnz drives its own wait loop for the duration, so nothing else can
+        touch this Tnz while a transfer is running. Keeping it on the session
+        thread is what makes that safe.
+        """
+        transfer_id = cmd.get("transferId") or ""
+        direction = cmd.get("direction")
+        local = cmd.get("localPath") or ""
+        parms = cmd.get("parms") or ""
+
+        def done(ok: bool, message: str) -> None:
+            emit(
+                {
+                    "op": "transfer",
+                    "sessionId": self.session_id,
+                    "transferId": transfer_id,
+                    "state": "done",
+                    "ok": ok,
+                    "message": message,
+                }
+            )
+
+        tns = self.tns
+        if tns is None:
+            done(False, "not connected")
+            return
+        if tns.pwait or tns.system_lock_wait:
+            done(
+                False,
+                "the keyboard is locked. IND$FILE is typed as a command, so"
+                " the session must be at a ready prompt (TSO READY, ISPF"
+                " option 6, or CMS) with the keyboard unlocked.",
+            )
+            return
+
+        emit(
+            {
+                "op": "transfer",
+                "sessionId": self.session_id,
+                "transferId": transfer_id,
+                "state": "start",
+                "direction": direction,
+                "localPath": local,
+                "parms": parms,
+            }
+        )
+        idle = float(cmd.get("idleTimeout") or 60)
+        tns.wait = _deadline_wait(tns, idle)
+        try:
+            if direction == "download":
+                message = tns.get_file(parms, local)
+            elif direction == "upload":
+                message = tns.put_file(local, parms)
+            else:
+                raise TnzError(f"unknown transfer direction {direction}")
+        except TnzTransferError as exc:
+            done(False, _transfer_reason(exc, tns))
+        except (TnzError, OSError) as exc:
+            done(False, str(exc))
+        except Exception:
+            done(False, traceback.format_exc(limit=2))
+        else:
+            done(True, str(message).strip())
+        finally:
+            try:
+                del tns.wait
+            except AttributeError:
+                pass
+            try:
+                self._emit_screen()
+            except Exception:
+                pass
 
     def _emit_screen(self) -> None:
         tns = self.tns

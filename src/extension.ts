@@ -9,6 +9,7 @@ import {
 import { HostEditorPanel } from "./hostEditor";
 import { refreshKeymapView, showKeymap } from "./keymapView";
 import { initLog, log, reportError } from "./log";
+import { download, upload } from "./transfer";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
 import { HostItem, HostTreeProvider } from "./tree";
@@ -213,6 +214,22 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("tnzView.showKeymap", () => {
       showKeymap(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("tnzView.session.download", async () => {
+      const panel = focusedId ? sessions.get(focusedId) : undefined;
+      if (!panel) {
+        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        return;
+      }
+      await download(panel);
+    }),
+    vscode.commands.registerCommand("tnzView.session.upload", async () => {
+      const panel = focusedId ? sessions.get(focusedId) : undefined;
+      if (!panel) {
+        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        return;
+      }
+      await upload(panel);
     })
   );
 }

@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "repository": {
@@ -50,6 +50,17 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "tnzView.transfer.idleTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "markdownDescription": "Seconds to wait for IND$FILE to respond before giving up. The clock resets whenever the transfer makes progress, so this only fires when the host has gone quiet — usually because the command was typed somewhere that is not a ready prompt."
+        },
+        "tnzView.transfer.options": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "IND$FILE options offered as the default when starting a transfer, for example `RECFM(V) LRECL(255)`. `ASCII` and `CRLF` are added automatically for text transfers."
         },
         "tnzView.tnzPath": {
           "type": "string",
@@ -129,6 +140,18 @@
         "command": "tnzView.showKeymap",
         "title": "Show Keyboard Map",
         "category": "TNZ 3270"
+      },
+      {
+        "command": "tnzView.session.download",
+        "title": "Download File from Host (IND$FILE)",
+        "category": "TNZ 3270",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "tnzView.session.upload",
+        "title": "Upload File to Host (IND$FILE)",
+        "category": "TNZ 3270",
+        "icon": "$(cloud-upload)"
       }
     ],
     "menus": {
@@ -174,6 +197,32 @@
           "command": "tnzView.hosts.delete",
           "when": "view == tnzView.hosts && viewItem =~ /host/",
           "group": "3_delete"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "tnzView.session.download",
+          "when": "activeWebviewPanelId == tnzView.session",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tnzView.session.upload",
+          "when": "activeWebviewPanelId == tnzView.session",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "tnzView.session.download",
+          "when": "tnzView.sessionActive"
+        },
+        {
+          "command": "tnzView.session.upload",
+          "when": "tnzView.sessionActive"
+        },
+        {
+          "command": "tnzView.session.attn",
+          "when": "tnzView.sessionActive"
         }
       ]
     },

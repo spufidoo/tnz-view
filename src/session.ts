@@ -2,7 +2,14 @@ import * as vscode from "vscode";
 import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
-import { DEFAULT_COLORS, HostProfile, SidecarEvent } from "./types";
+import { buildParms } from "./transfer";
+import {
+  DEFAULT_COLORS,
+  HostProfile,
+  SidecarEvent,
+  TransferEvent,
+  TransferRequest,
+} from "./types";
 
 export class SessionPanel {
   static readonly viewType = "tnzView.session";
@@ -10,6 +17,8 @@ export class SessionPanel {
   readonly sessionId: string;
   private readonly panel: vscode.WebviewPanel;
   private insertMode = false;
+  private transferSeq = 0;
+  private readonly pending = new Map<string, (ev: TransferEvent) => void>();
 
   constructor(
     private readonly sidecar: Sidecar,
@@ -37,6 +46,17 @@ export class SessionPanel {
       } catch {
         /* ignore */
       }
+      for (const [transferId, resolve] of this.pending) {
+        resolve({
+          op: "transfer",
+          sessionId: this.sessionId,
+          transferId,
+          state: "done",
+          ok: false,
+          message: "the session was closed",
+        });
+      }
+      this.pending.clear();
       this.hooks.onDispose();
     });
 
@@ -81,6 +101,30 @@ export class SessionPanel {
     });
   }
 
+  /**
+   * Run an IND$FILE transfer.
+   *
+   * The sidecar answers with a single done event, so the promise settles even
+   * when the host never replies; its idle timeout is the backstop.
+   */
+  transfer(req: TransferRequest): Promise<TransferEvent> {
+    const transferId = `t${++this.transferSeq}`;
+    return new Promise((resolve) => {
+      this.pending.set(transferId, resolve);
+      this.sidecar.send({
+        op: "transfer",
+        sessionId: this.sessionId,
+        transferId,
+        direction: req.direction,
+        localPath: req.localPath,
+        parms: buildParms(req),
+        idleTimeout: vscode.workspace
+          .getConfiguration("tnzView")
+          .get<number>("transfer.idleTimeout", 60),
+      });
+    });
+  }
+
   handleEvent(ev: SidecarEvent): void {
     if (ev.op === "ready") {
       return;
@@ -89,6 +133,13 @@ export class SessionPanel {
       return;
     }
     void this.panel.webview.postMessage(ev);
+    if (ev.op === "transfer") {
+      if (ev.state === "done") {
+        this.pending.get(ev.transferId)?.(ev);
+        this.pending.delete(ev.transferId);
+      }
+      return;
+    }
     if (ev.op === "status" || ev.op === "screen") {
       this.setStatus();
     }
