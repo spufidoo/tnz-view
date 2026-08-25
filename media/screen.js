@@ -20,6 +20,7 @@ const EH_UNDERSCORE = 0xf4;
 const config = window.__TNZ_CONFIG__ || {};
 let colors = { ...DEFAULT_COLORS, ...(config.colors || {}) };
 let blinkEnabled = config.blink === true;
+let keymap = config.keymap || {};
 
 // Colour value 0 means "use the field default".
 let PALETTE = {};
@@ -280,6 +281,9 @@ window.addEventListener("message", (event) => {
   } else if (msg.op === "config") {
     colors = { ...DEFAULT_COLORS, ...(msg.colors || {}) };
     blinkEnabled = msg.blink === true;
+    if (msg.keymap) {
+      keymap = msg.keymap;
+    }
     applyColors();
     rowSig.fill(null);
     paint();
@@ -298,73 +302,74 @@ function hasSelection() {
   return Boolean(sel && !sel.isCollapsed && sel.toString().length);
 }
 
+const KEY_ALIASES = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  ArrowUp: "up",
+  ArrowDown: "down",
+  PageUp: "pageup",
+  PageDown: "pagedown",
+  Escape: "escape",
+  " ": "space",
+};
+
+function chordFor(e) {
+  const key = KEY_ALIASES[e.key] || e.key.toLowerCase();
+  let chord = "";
+  if (e.ctrlKey) {
+    chord += "ctrl+";
+  }
+  if (e.altKey) {
+    chord += "alt+";
+  }
+  if (e.shiftKey) {
+    chord += "shift+";
+  }
+  if (e.metaKey) {
+    chord += "meta+";
+  }
+  return chord + key;
+}
+
+function setInsert(on) {
+  insertMode = on;
+  vscode.postMessage({ op: "insert", value: insertMode });
+  setOia();
+  positionCursor();
+}
+
+function runAction(action) {
+  const [kind, value] = action.split(":");
+  if (kind === "aid" || kind === "nav") {
+    vscode.postMessage({ op: "key", type: kind, value });
+  } else if (kind === "local" && value === "insert") {
+    setInsert(!insertMode);
+  } else if (kind === "local" && value === "reset") {
+    // Reset is an operator function: it unlocks the keyboard and leaves
+    // insert mode without sending anything to the host.
+    setInsert(false);
+    document.getElementById("oia-msg").textContent = "";
+  }
+}
+
 screenEl.addEventListener("keydown", (e) => {
-  // Let the editor handle clipboard and select-all shortcuts.
+  // Clipboard and select-all belong to the editor. Ctrl+C only means ATTN
+  // when there is nothing to copy.
   if ((e.ctrlKey || e.metaKey) && ["c", "a", "v", "x"].includes(e.key.toLowerCase())) {
     if (e.key.toLowerCase() === "c" && !hasSelection()) {
       e.preventDefault();
-      vscode.postMessage({ op: "key", type: "aid", value: "attn" });
+      runAction("aid:attn");
     }
     return;
   }
-  if (e.key === "Tab") {
+
+  const action = keymap[chordFor(e)];
+  if (action) {
     e.preventDefault();
-    vscode.postMessage({
-      op: "key",
-      type: "nav",
-      value: e.shiftKey ? "backtab" : "tab",
-    });
+    runAction(action);
     return;
   }
-  if (/^F([1-9]|1[0-2])$/.test(e.key)) {
-    e.preventDefault();
-    const n = Number(e.key.slice(1));
-    const pf = e.shiftKey ? n + 12 : n;
-    vscode.postMessage({ op: "key", type: "aid", value: `pf${pf}` });
-    return;
-  }
-  if (e.key === "Home" && e.ctrlKey) {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "nav", value: "eraseeof" });
-    return;
-  }
-  const nav = {
-    ArrowLeft: "left",
-    ArrowRight: "right",
-    ArrowUp: "up",
-    ArrowDown: "down",
-    Home: "home",
-    Backspace: "backspace",
-    Delete: "delete",
-  };
-  if (nav[e.key]) {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "nav", value: nav[e.key] });
-    return;
-  }
-  if (e.key === "Enter") {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "aid", value: "enter" });
-    return;
-  }
-  if (e.key === "Insert") {
-    e.preventDefault();
-    insertMode = !insertMode;
-    vscode.postMessage({ op: "insert", value: insertMode });
-    setOia();
-    positionCursor();
-    return;
-  }
-  if (e.key === "Pause") {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "aid", value: "clear" });
-    return;
-  }
-  if (e.altKey && e.key.toLowerCase() === "a") {
-    e.preventDefault();
-    vscode.postMessage({ op: "key", type: "aid", value: "attn" });
-    return;
-  }
+
   if (e.ctrlKey || e.altKey || e.metaKey) {
     return;
   }

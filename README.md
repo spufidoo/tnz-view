@@ -61,19 +61,27 @@ lower bound and raising the size one model at a time will keep failing.
 
 | Key | Action |
 | --- | --- |
-| F1–F12 | PF1–PF12 |
-| Shift+F1–F12 | PF13–PF24 |
+| F1–F12, Shift+F1–F12 | PF1–PF24 |
 | Enter | ENTER |
-| Tab / Shift+Tab | Tab / Backtab |
-| Insert | Toggle insert |
-| Home, arrows, Backspace, Delete | Cursor / edit |
-| Ctrl+Home | Erase EOF |
-| Pause | CLEAR |
+| Alt+1 / Alt+2 / Alt+3 | PA1 / PA2 / PA3 |
+| Alt+C or Pause | CLEAR |
 | Alt+A or Ctrl+C (no selection) | ATTN |
+| Tab / Shift+Tab | Next / previous field |
+| Arrows, Home, End | Cursor movement |
+| Alt+Left / Alt+Right | Word left / word right |
+| Backspace, Delete | Edit |
+| Ctrl+Home or Shift+End | Erase to end of field |
+| Alt+Delete | Erase input |
+| Ctrl+Enter | New line |
+| Insert | Toggle insert |
+| Ctrl+R | Reset |
 | Click / double-click | Cursor / cursor + ENTER |
-| Drag | Select text |
-| Ctrl+C (with selection) | Copy |
-| Ctrl+V | Paste into fields |
+| Drag, Ctrl+C, Ctrl+V | Select, copy, paste into fields |
+
+Every binding can be changed with the `tnzView.keymap` setting, and open sessions
+pick up edits immediately. **TNZ 3270: Show Keyboard Map** lists what is in
+effect. See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action
+name, and the keys that are reserved.
 
 The webview scales the font so the whole 3270 screen fits. Resizing the editor does not change rows×cols.
 
@@ -105,6 +113,7 @@ The **Colour** section of the host settings tab controls this:
 src/           TypeScript extension (tree, sidecar client, session + settings tabs)
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
+docs/          Keyboard map reference
 ```
 
 Apache-2.0. See `NOTICE` for the tnz attribution.

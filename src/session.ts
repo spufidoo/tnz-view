@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
 import { DEFAULT_COLORS, HostProfile, SidecarEvent } from "./types";
@@ -67,12 +68,17 @@ export class SessionPanel {
   /** Apply an edited profile. Colours repaint live; the rest needs a reconnect. */
   applyProfile(host: HostProfile): void {
     this.host = host;
+    this.sendConfig();
+    this.setStatus();
+  }
+
+  sendConfig(): void {
     void this.panel.webview.postMessage({
       op: "config",
-      colors: host.colors ?? DEFAULT_COLORS,
-      blink: host.blink === true,
+      colors: this.host.colors ?? DEFAULT_COLORS,
+      blink: this.host.blink === true,
+      keymap: resolveKeymap(),
     });
-    this.setStatus();
   }
 
   handleEvent(ev: SidecarEvent): void {
@@ -145,6 +151,7 @@ export class SessionPanel {
     const config = JSON.stringify({
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
+      keymap: resolveKeymap(),
     }).replace(/</g, "\\u003c");
     return `<!DOCTYPE html>
 <html lang="en">

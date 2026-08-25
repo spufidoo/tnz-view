@@ -7,6 +7,7 @@ import {
   upsertHost,
 } from "./hosts";
 import { HostEditorPanel } from "./hostEditor";
+import { refreshKeymapView, showKeymap } from "./keymapView";
 import { initLog, log, reportError } from "./log";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
@@ -29,6 +30,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("tnzView.hosts")) {
         tree.refresh();
+      }
+      if (e.affectsConfiguration("tnzView.keymap")) {
+        for (const panel of sessions.values()) {
+          panel.sendConfig();
+        }
+        refreshKeymapView(context.extensionUri);
       }
     }),
     { dispose: () => sidecar.dispose() }
@@ -203,6 +210,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("tnzView.session.attn", () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       panel?.sendAid("attn");
+    }),
+    vscode.commands.registerCommand("tnzView.showKeymap", () => {
+      showKeymap(context.extensionUri);
     })
   );
 }
