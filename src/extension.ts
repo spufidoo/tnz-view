@@ -27,6 +27,25 @@ export function activate(context: vscode.ExtensionContext): void {
   const sessions = new Map<string, SessionPanel>();
   let focusedId: string | undefined;
 
+  /**
+   * Track which session tab is on top.
+   *
+   * Derived from every panel rather than from one panel's event, because
+   * switching between two sessions fires deactivate and activate in an order
+   * that is not guaranteed.
+   */
+  const syncSession = (): void => {
+    const active = [...sessions.values()].find((p) => p.isActive);
+    if (active) {
+      focusedId = active.sessionId;
+    }
+    void vscode.commands.executeCommand(
+      "setContext",
+      "tnzView.sessionActive",
+      Boolean(active)
+    );
+  };
+
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider("tnzView.hosts", tree),
     vscode.workspace.onDidChangeConfiguration((e) => {
@@ -175,19 +194,16 @@ export function activate(context: vscode.ExtensionContext): void {
               focusedId = undefined;
             }
             tree.setStatus(host.id, "disconnected");
-            void vscode.commands.executeCommand(
-              "setContext",
-              "tnzView.sessionActive",
-              false
-            );
+            syncSession();
           },
-          onFocus: () => {
-            focusedId = host.id;
-          },
+          onViewState: syncSession,
         });
         sessions.set(host.id, panel);
         focusedId = host.id;
         panel.connect();
+        // A new panel is active straight away, but onDidChangeViewState only
+        // fires on a change, so the context key has to be set here too.
+        syncSession();
       }
     ),
     vscode.commands.registerCommand(

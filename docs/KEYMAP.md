@@ -53,19 +53,37 @@ bind `a`, not `shift+a`.
 
 ### `aid:` — send an AID and unlock
 
-Sends the key to the host and waits for the reply.
+An AID, or Attention IDentifier, is the byte a 3270 sends to say *"I am done,
+here is the screen."* It is the only thing that talks to the host. Everything
+else you do at a 3270 — typing, tabbing between fields, erasing — happens
+entirely in the terminal's own buffer, and the host has no idea it is
+happening. Nothing reaches it until you press an AID key.
+
+Pressing one sends the AID byte, the cursor position and the contents of every
+field you changed, all in one go, and then locks the keyboard: the status line
+shows `X SYSTEM` and your typing is ignored until the host replies with a new
+screen. That lock is not the emulator being slow, it is how the protocol works.
+
+Which AID you send is how the host knows what you *meant* by the same screen
+full of data. A program sees ENTER and PF3 as different requests even though
+the fields are identical, which is why 3270 applications put a legend like
+`F3=Exit F7=Up F8=Down` along the bottom.
 
 | Action | Meaning |
 | --- | --- |
-| `aid:enter` | ENTER |
-| `aid:clear` | CLEAR |
-| `aid:attn` | ATTN |
-| `aid:pa1` `aid:pa2` `aid:pa3` | Program attention 1–3 |
-| `aid:pf1` … `aid:pf24` | Program function 1–24 |
+| `aid:enter` | ENTER. Submit the screen |
+| `aid:pf1` … `aid:pf24` | Program function 1–24. The application decides what each one means |
+| `aid:pa1` `aid:pa2` `aid:pa3` | Program attention 1–3. Sends the AID *without* your field changes; usually PA1 means cancel and PA2 means reshow |
+| `aid:clear` | CLEAR. Blanks the screen buffer and tells the host to rebuild it |
+| `aid:attn` | ATTN. An interrupt rather than a submission — under TSO this is what breaks into a running program |
+
+Because these are the keys that unlock a locked keyboard, a macro step that
+follows one should be `[wait]`; see [macros](#macros).
 
 ### `nav:` — move the cursor or edit the screen
 
-Local to the screen buffer; nothing is sent to the host.
+Local to the screen buffer; nothing is sent to the host. These decide what the
+next AID will carry.
 
 | Action | Meaning |
 | --- | --- |

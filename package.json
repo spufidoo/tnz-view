@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "repository": {
@@ -232,24 +232,6 @@
           "command": "tnzView.session.upload",
           "when": "activeWebviewPanelId == tnzView.session",
           "group": "navigation@2"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "tnzView.session.download",
-          "when": "tnzView.sessionActive"
-        },
-        {
-          "command": "tnzView.session.upload",
-          "when": "tnzView.sessionActive"
-        },
-        {
-          "command": "tnzView.session.attn",
-          "when": "tnzView.sessionActive"
-        },
-        {
-          "command": "tnzView.session.runMacro",
-          "when": "tnzView.sessionActive"
         }
       ]
     },

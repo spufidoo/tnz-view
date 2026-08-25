@@ -25,7 +25,7 @@ export class SessionPanel {
     private readonly sidecar: Sidecar,
     public host: HostProfile,
     extensionUri: vscode.Uri,
-    private readonly hooks: { onDispose: () => void; onFocus: () => void }
+    private readonly hooks: { onDispose: () => void; onViewState: () => void }
   ) {
     this.sessionId = host.id;
     this.panel = vscode.window.createWebviewPanel(
@@ -61,16 +61,7 @@ export class SessionPanel {
       this.hooks.onDispose();
     });
 
-    this.panel.onDidChangeViewState((e) => {
-      void vscode.commands.executeCommand(
-        "setContext",
-        "tnzView.sessionActive",
-        e.webviewPanel.active
-      );
-      if (e.webviewPanel.active) {
-        this.hooks.onFocus();
-      }
-    });
+    this.panel.onDidChangeViewState(() => this.hooks.onViewState());
 
     this.panel.webview.onDidReceiveMessage((msg: { op: string; [k: string]: unknown }) => {
       if (msg.op === "key" || msg.op === "click" || msg.op === "paste") {
@@ -86,6 +77,10 @@ export class SessionPanel {
 
   reveal(): void {
     this.panel.reveal();
+  }
+
+  get isActive(): boolean {
+    return this.panel.active;
   }
 
   /** Apply an edited profile. Colours repaint live; the rest needs a reconnect. */
