@@ -14,6 +14,14 @@ import sys
 import threading
 import traceback
 
+# The protocol is UTF-8 in both directions. On Windows a pipe defaults to the
+# ANSI code page, which cannot encode the cp310 box-drawing glyphs ISPF uses.
+for _stream in (sys.stdin, sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 # Optional local IBM/tnz checkout (set by the extension).
 _tnz_path = os.environ.get("TNZ_VIEW_TNZ_PATH", "").strip()
 if _tnz_path:
@@ -179,7 +187,18 @@ class Session:
 
                 if tns.updated:
                     tns.updated = False
-                    self._emit_screen()
+                    try:
+                        self._emit_screen()
+                    except Exception:
+                        # One unrenderable screen must not kill the session.
+                        emit(
+                            {
+                                "op": "error",
+                                "sessionId": self.session_id,
+                                "message": "screen update failed: "
+                                + traceback.format_exc(limit=1),
+                            }
+                        )
         except Exception:
             emit(
                 {

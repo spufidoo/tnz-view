@@ -59,7 +59,11 @@ export class Sidecar extends EventEmitter {
       throw new Error(`Sidecar not found: ${script}`);
     }
 
-    const env: NodeJS.ProcessEnv = { ...process.env, PYTHONUNBUFFERED: "1" };
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      PYTHONUNBUFFERED: "1",
+      PYTHONIOENCODING: "utf-8",
+    };
     const tnzPath =
       vscode.workspace.getConfiguration("tnzView").get<string>("tnzPath", "").trim() ||
       siblingTnzCheckout(this.extensionPath);
