@@ -3,27 +3,41 @@ import * as vscode from "vscode";
 // would close the cycle at runtime.
 import type { SessionPanel } from "./session";
 import { log } from "./log";
-import { TransferRequest } from "./types";
+import { TransferRequest, TransferSyntax } from "./types";
+
+export function getSyntax(): TransferSyntax {
+  return vscode.workspace
+    .getConfiguration("tnzView")
+    .get<TransferSyntax>("transfer.syntax", "tso");
+}
 
 /**
  * Build the argument string for IND$FILE.
  *
- * TSO takes `dsname(member)` and CMS takes `fn ft fm`; both accept options in
- * parentheses, so the host file name is passed through untouched.
+ * The two hosts introduce options differently. CMS uses its usual `(`, while
+ * TSO takes them as bare keywords and rejects a parenthesis with
+ * `IKJ56712I INVALID KEYWORD, (`.
  *
  * Text mode asks for ASCII and CRLF together. tnz treats that pair as a
  * request to do the translation itself, which avoids the host's mangling of
- * characters such as `|`. It only recognises them as whole words, so the
- * opening parenthesis has to be separated by a space or the assist is
- * silently skipped and the host does the translation instead.
+ * characters such as `|`. It matches them as whole words, so on CMS the
+ * parenthesis needs a space after it or the assist is silently skipped and
+ * the host translates instead.
  */
-export function buildParms(req: TransferRequest): string {
+export function buildParms(
+  req: TransferRequest,
+  syntax: TransferSyntax = "tso"
+): string {
   const options = [
     ...(req.text ? ["ASCII", "CRLF"] : []),
     ...req.options.trim().split(/\s+/).filter(Boolean),
   ];
   const name = req.hostFile.trim();
-  return options.length ? `${name} ( ${options.join(" ")}` : name;
+  if (!options.length) {
+    return name;
+  }
+  const intro = syntax === "cms" ? "( " : "";
+  return `${name} ${intro}${options.join(" ")}`;
 }
 
 /** Local file name to suggest for a host file. */

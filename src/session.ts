@@ -3,7 +3,7 @@ import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
 import { resolveMacro } from "./macros";
-import { buildParms } from "./transfer";
+import { buildParms, getSyntax } from "./transfer";
 import {
   DEFAULT_COLORS,
   HostProfile,
@@ -115,7 +115,7 @@ export class SessionPanel {
         transferId,
         direction: req.direction,
         localPath: req.localPath,
-        parms: buildParms(req),
+        parms: buildParms(req, getSyntax()),
         idleTimeout: vscode.workspace
           .getConfiguration("tnzView")
           .get<number>("transfer.idleTimeout", 60),

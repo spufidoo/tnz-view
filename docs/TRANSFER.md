@@ -119,7 +119,18 @@ The name is passed to IND$FILE untouched, so use whatever the host expects:
 
 ## Options
 
-Whatever you type at the options prompt is passed to IND$FILE in parentheses.
+Whatever you type at the options prompt is passed to IND$FILE.
+
+The two hosts introduce options differently, so `tnzView.transfer.syntax`
+selects between them. It defaults to `tso`.
+
+| Setting | Command sent |
+| --- | --- |
+| `tso` | `IND$FILE GET 'MY.DATA' ASCII CRLF` |
+| `cms` | `IND$FILE GET FN FT FM ( ASCII CRLF` |
+
+The parenthesis is CMS convention. TSO takes options as bare keywords and
+rejects one with `IKJ56712I INVALID KEYWORD, (`.
 
 | Option | Use |
 | --- | --- |
@@ -161,6 +172,8 @@ success; anything else is an error and the message says what went wrong.
 | "the keyboard is locked" | Not at a ready prompt, or the host still owes a reply |
 | "no response from IND$FILE" | The command went into a field instead of running. You were not at a command prompt |
 | `COMMAND IND$FILE NOT FOUND` on screen | Not installed, or renamed at your site |
+| `IKJ56712I INVALID KEYWORD, (` | `tnzView.transfer.syntax` is `cms` against a TSO host |
+| `IKJ56712I INVALID KEYWORD` naming an option | The host does not accept that option; check it against the ones above |
 | `TRANS13` and similar | The host rejected the request; the number and text say why |
 | Upload to a member fails | The PDS does not exist. IND$FILE cannot create one |
 | Uploaded lines are cut short | Lines are longer than the dataset's LRECL |

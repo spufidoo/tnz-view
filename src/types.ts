@@ -111,6 +111,9 @@ export type SidecarEvent =
 
 export type TransferDirection = "download" | "upload";
 
+/** How the host expects IND$FILE options to be introduced. */
+export type TransferSyntax = "tso" | "cms";
+
 /** A pending IND$FILE transfer, before it is turned into a command. */
 export interface TransferRequest {
   direction: TransferDirection;
