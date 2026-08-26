@@ -136,6 +136,7 @@ src/           TypeScript extension (tree, sidecar client, session + settings ta
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
 docs/          Keyboard map and file transfer references
+HISTORY.md     How the extension was built (this chat)
 ```
 
 Apache-2.0. See `NOTICE` for the tnz attribution.
