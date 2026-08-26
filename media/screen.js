@@ -287,6 +287,8 @@ window.addEventListener("message", (event) => {
     applyColors();
     rowSig.fill(null);
     paint();
+  } else if (msg.op === "focus") {
+    screenEl.focus();
   } else if (msg.op === "transfer") {
     // The screen does not update while IND$FILE runs, so say why.
     document.getElementById("oia-msg").textContent =
@@ -430,6 +432,13 @@ document.addEventListener("paste", (e) => {
 
 window.addEventListener("resize", () => {
   fit();
+});
+
+// The command palette, notifications and dialogs all take focus away. VS Code
+// hands it back to the webview document but not to the element listening for
+// keys, so without this the 3270 stays deaf until the user clicks it.
+window.addEventListener("focus", () => {
+  screenEl.focus();
 });
 
 applyColors();

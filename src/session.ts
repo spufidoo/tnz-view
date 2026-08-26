@@ -83,6 +83,12 @@ export class SessionPanel {
     return this.panel.active;
   }
 
+  /** Put the keyboard back in the 3270 after a command took focus away. */
+  focus(): void {
+    this.panel.reveal(undefined, false);
+    void this.panel.webview.postMessage({ op: "focus" });
+  }
+
   /** Apply an edited profile. Colours repaint live; the rest needs a reconnect. */
   applyProfile(host: HostProfile): void {
     this.host = host;

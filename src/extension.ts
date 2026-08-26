@@ -257,6 +257,7 @@ export function activate(context: vscode.ExtensionContext): void {
       });
       if (name) {
         panel.runMacro(name);
+        panel.focus();
       }
     }),
     vscode.commands.registerCommand("tnzView.session.download", async () => {
