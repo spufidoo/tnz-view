@@ -299,7 +299,7 @@ window.addEventListener("message", (event) => {
         .split("\n")
         .find((l) => l.trim()) || "error";
     document.getElementById("oia-msg").textContent =
-      first.length > 120 ? `${first.slice(0, 120)}…` : first;
+      first.length > 240 ? `${first.slice(0, 240)}…` : first;
   }
 });
 

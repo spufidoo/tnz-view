@@ -33,7 +33,7 @@ settings), so they can also be edited as JSON.
 | Field | Meaning |
 | --- | --- |
 | host / port | Default ports: 992 TLS, 23 plain |
-| secure / verifyCert | TLS and certificate checking |
+| secure / verifyCert | TLS and certificate checking. A TLS host on a non-standard port still needs Secure on; a mismatch drops the session immediately |
 | psSize | Any `rowsxcols`, not just the standard models |
 | codePage | EBCDIC code page, e.g. `037` |
 | luName / tn3270e | LU name requires TN3270E |

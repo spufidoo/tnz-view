@@ -158,38 +158,222 @@ def _transfer_reason(exc: Exception, tns) -> str:
     return text
 
 
-def _seslost_reason(seslost, tns) -> str:
-    """Describe why tnz dropped the session.
+def _exception_chain(exc) -> list:
+    """Walk __cause__ / __context__ so wrapped SSL errors are visible."""
+    seen: list = []
+    while exc is not None and exc not in seen:
+        seen.append(exc)
+        nxt = exc.__cause__ or exc.__context__
+        if nxt is exc:
+            break
+        exc = nxt
+    return seen
 
-    tnz sets seslost to True for a clean close, or to a sys.exc_info()
-    tuple when it gave up on the data stream.
-    """
-    if not isinstance(seslost, tuple) or len(seslost) != 3:
-        return ""
 
-    exc = seslost[1]
+def _format_exc(exc) -> str:
     if exc is None:
         return ""
+    text = str(exc).strip()
+    name = type(exc).__name__
+    if not text or text == name:
+        return name
+    return f"{name}: {text}"
 
-    reason = f"{type(exc).__name__}: {exc}"
 
-    # The host addressed a row we do not have, which usually means the screen
-    # size here is smaller than the session the host is resuming.
-    match = re.search(r"Invalid address: (\d+)", str(exc))
-    if match:
+def _seslost_exc(seslost):
+    """Pull the exception out of tnz's seslost value.
+
+    tnz sets seslost to True for a close with no error, or to a
+    sys.exc_info() / (type, exc, tb) tuple when it knows why.
+    """
+    if isinstance(seslost, BaseException):
+        return seslost
+    if isinstance(seslost, tuple) and len(seslost) >= 2:
+        return seslost[1]
+    return None
+
+
+def _failure_advice(exc, *, tns=None, secure: bool | None = None) -> str:
+    """One sentence of what to try, or empty if we cannot say."""
+    chain = _exception_chain(exc) if exc is not None else []
+    blob = " ".join(_format_exc(e).lower() for e in chain)
+    names = " ".join(type(e).__name__.lower() for e in chain)
+
+    if re.search(r"invalid address: (\d+)", blob) and tns is not None:
+        match = re.search(r"invalid address: (\d+)", blob)
         address = int(match.group(1))
         cols = tns.maxcol or 80
         options = " or ".join(_suggest_sizes(address, cols))
-        # This is the first address past the end of the buffer, so it is only
-        # a lower bound: the host's screen may be larger still. Raising the
-        # size one model at a time just moves the failure.
-        reason += (
-            f". The host wrote past the end of this {tns.maxrow}x{cols}"
+        return (
+            f"The host wrote past the end of this {tns.maxrow}x{cols}"
             f" screen. Set the screen size to match the emulator that"
             f" started the session: the columns must match exactly and the"
             f" rows must be at least as many. Otherwise try {options}."
         )
-    return reason
+
+    if any(
+        key in blob
+        for key in (
+            "wrong version number",
+            "wrong_version_number",
+            "unknown protocol",
+            "record layer failure",
+            "httpsconnectionpool",
+        )
+    ):
+        if secure:
+            return (
+                "This looks like a plain (non-TLS) TN3270 port. Turn off"
+                " Secure in the host profile, or use port 23."
+            )
+        return (
+            "The host answered in TLS. Turn on Secure in the host profile;"
+            " the usual TLS port is 992, though some sites use another."
+        )
+
+    if any(
+        key in blob
+        for key in (
+            "certificate_verify_failed",
+            "certificate verify failed",
+            "unable to get local issuer",
+            "self signed certificate",
+            "self-signed certificate",
+        )
+    ):
+        return (
+            "The certificate is not trusted. For a lab or self-signed host,"
+            " turn off Verify certificate. Otherwise the host name in the"
+            " profile must match the name on the certificate."
+        )
+
+    if any(
+        key in blob
+        for key in (
+            "hostname mismatch",
+            "doesn't match",
+            "does not match",
+            "certificate_hostname",
+        )
+    ):
+        return (
+            "The certificate name does not match this host. Use the name on"
+            " the certificate, or turn off Verify certificate."
+        )
+
+    if "handshake" in blob or "ssl" in names or "ssl" in blob:
+        if secure is False:
+            return (
+                "The host closed a TLS handshake. Turn on Secure in the"
+                " host profile."
+            )
+        if secure:
+            return (
+                "The TLS handshake failed. Try turning off Verify"
+                " certificate, setting Sec level to 1 for an older stack,"
+                " or turning Secure off if this is actually a plain port."
+            )
+
+    refused = (
+        "connection refused" in blob
+        or "actively refused" in blob
+        or "errno 111" in blob
+        or "winerror 10061" in blob
+        or "econnrefused" in names
+        or "connectionrefused" in names
+    )
+    if refused:
+        return (
+            "Nothing is listening on that host and port. Check the port"
+            " (992 is the usual TLS TN3270 port, 23 the usual plain one)"
+            " and that the host name resolves to the machine you meant."
+        )
+
+    reset = (
+        "connection reset" in blob
+        or "connectionabort" in names
+        or "connectionreset" in names
+        or "winerror 10054" in blob
+        or "errno 104" in blob
+        or "broken pipe" in blob
+    )
+    if reset:
+        if secure is False:
+            return (
+                "The host closed the connection. This port may expect TLS;"
+                " turn on Secure in the host profile."
+            )
+        if secure:
+            return (
+                "The host closed the TLS connection. If this is a plain"
+                " port, turn Secure off. Otherwise the host may have"
+                " rejected the TN3270 negotiation (try toggling TN3270E)."
+            )
+        return "The host closed the connection."
+
+    timed_out = (
+        "timed out" in blob
+        or "timeout" in names
+        or "winerror 10060" in blob
+        or "errno 110" in blob
+    )
+    if timed_out:
+        return (
+            "The host did not answer in time. Check the host name and port,"
+            " and whether you need TLS (Secure) to reach it."
+        )
+
+    dns = (
+        "gaierror" in names
+        or "getaddrinfo" in blob
+        or "name or service not known" in blob
+        or "nodename nor servname" in blob
+        or "not known" in blob
+        and "host" in blob
+    )
+    if dns:
+        return "The host name did not resolve. Check the spelling."
+
+    if "eof" in blob or "connection closed" in blob:
+        if secure is False:
+            return (
+                "The host closed the socket without speaking. This port may"
+                " expect TLS; turn on Secure in the host profile."
+            )
+        return "The host closed the connection."
+
+    return ""
+
+
+def _explain_failure(exc, *, tns=None, secure: bool | None = None) -> str:
+    """Exception text plus advice, for toasts and the status line."""
+    if exc is None:
+        return _seslost_reason(True, tns, secure=secure)
+    reason = _format_exc(exc)
+    extra = [
+        _format_exc(e)
+        for e in _exception_chain(exc)[1:]
+        if _format_exc(e) not in reason
+    ]
+    if extra:
+        reason = reason + " (" + "; ".join(extra) + ")"
+    advice = _failure_advice(exc, tns=tns, secure=secure)
+    if advice:
+        reason = f"{reason}. {advice}" if reason else advice
+    return reason or _seslost_reason(True, tns, secure=secure)
+
+
+def _seslost_reason(seslost, tns, *, secure: bool | None = None) -> str:
+    """Describe why tnz dropped the session."""
+    exc = _seslost_exc(seslost)
+    if exc is None:
+        if secure is False:
+            return (
+                "The host closed the connection. If this port expects TLS,"
+                " turn on Secure in the host profile."
+            )
+        return "The host closed the connection."
+    return _explain_failure(exc, tns=tns, secure=secure)
 
 
 NAV = {
@@ -228,6 +412,7 @@ class Session:
         self.commands: queue.Queue = queue.Queue()
         self.stop = threading.Event()
         self.tns: Tnz | None = None
+        self.secure = False
         self.thread = threading.Thread(
             target=self._run, name=f"tnz-{session_id}", daemon=True
         )
@@ -256,21 +441,24 @@ class Session:
                         {
                             "op": "error",
                             "sessionId": self.session_id,
-                            "message": str(exc),
+                            "message": _explain_failure(
+                                exc, tns=tns, secure=self.secure
+                            ),
                         }
                     )
                     continue
 
                 if tns.seslost:
-                    reason = _seslost_reason(tns.seslost, tns)
-                    if reason:
-                        emit(
-                            {
-                                "op": "error",
-                                "sessionId": self.session_id,
-                                "message": f"session lost: {reason}",
-                            }
-                        )
+                    reason = _seslost_reason(
+                        tns.seslost, tns, secure=self.secure
+                    )
+                    emit(
+                        {
+                            "op": "error",
+                            "sessionId": self.session_id,
+                            "message": f"session lost: {reason}",
+                        }
+                    )
                     emit(
                         {
                             "op": "status",
@@ -342,6 +530,7 @@ class Session:
         self._disconnect()
         host = cmd.get("host") or "127.0.0.1"
         secure = bool(cmd.get("secure", True))
+        self.secure = secure
         port = cmd.get("port")
         if port is None:
             port = 992 if secure else 23
@@ -399,13 +588,15 @@ class Session:
         try:
             tns.connect(host, int(port), secure=secure, verifycert=verify)
         except Exception as exc:
+            reason = _explain_failure(exc, tns=tns, secure=secure)
             emit(
                 {
                     "op": "error",
                     "sessionId": self.session_id,
-                    "message": f"connect failed: {exc}",
+                    "message": f"connect failed: {reason}",
                 }
             )
+            self._emit_lost(tns, reason)
             return
 
         self.tns = tns
@@ -416,17 +607,50 @@ class Session:
             tns.wait(timeout=0.05)
 
         if tns.seslost:
+            reason = _seslost_reason(tns.seslost, tns, secure=secure)
             emit(
                 {
                     "op": "error",
                     "sessionId": self.session_id,
-                    "message": "connection lost during connect",
+                    "message": f"connection lost during connect: {reason}",
                 }
             )
+            self._emit_lost(tns, reason)
+            self.tns = None
+            return
+
+        if not tns._transport:
+            reason = (
+                f"timed out waiting for {host}:{port} to complete the"
+                f" {'TLS ' if secure else ''}handshake. Check the host,"
+                f" port, and whether Secure should be"
+                f" {'off' if secure else 'on'}."
+            )
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": reason,
+                }
+            )
+            self._emit_lost(tns, reason)
             self.tns = None
             return
 
         tns.wait(timeout=2.0)
+        if tns.seslost:
+            reason = _seslost_reason(tns.seslost, tns, secure=secure)
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"connection lost during connect: {reason}",
+                }
+            )
+            self._emit_lost(tns, reason)
+            self.tns = None
+            return
+
         tns.updated = False
         emit(
             {
@@ -440,6 +664,24 @@ class Session:
             }
         )
         self._emit_screen()
+
+    def _emit_lost(self, tns, reason: str) -> None:
+        emit(
+            {
+                "op": "status",
+                "sessionId": self.session_id,
+                "connected": False,
+                "tls": False,
+                "lu": getattr(tns, "lu_name", "") or "",
+                "seslost": True,
+                "lock": True,
+                "reason": reason,
+            }
+        )
+        try:
+            tns.close()
+        except Exception:
+            pass
 
     def _disconnect(self) -> None:
         tns = self.tns

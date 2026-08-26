@@ -252,8 +252,8 @@ export class SessionPanel {
 }
 
 function firstLine(message: string): string {
-  const line = message.split("\n").find((l) => l.trim()) ?? message;
-  return line.length > 200 ? `${line.slice(0, 200)}…` : line;
+    const line = message.split("\n").find((l) => l.trim()) ?? message;
+    return line.length > 320 ? `${line.slice(0, 320)}…` : line;
 }
 
 function getNonce(): string {
