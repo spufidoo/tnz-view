@@ -747,6 +747,11 @@ def _effective_planes(tns, size: int) -> tuple:
             f_eh = plane_eh[i]
             f_fg = plane_fg[i]
             f_bg = plane_bg[i]
+            # The attribute byte takes up a screen position but belongs to
+            # no field, and a 3270 shows it as a plain blank. Leaving its
+            # planes at zero stops underscore or reverse video from
+            # starting a column early and making the field look wider.
+            continue
 
         attrs[i] = f_fa
         eff_eh[i] = plane_eh[i] or f_eh
