@@ -80,6 +80,7 @@ export const DEFAULT_KEYMAP: Keymap = {
 
   insert: "local:insert",
   "ctrl+r": "local:reset",
+  rightctrl: "local:reset",
 };
 
 export const ACTION_LABELS: Record<string, string> = {

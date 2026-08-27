@@ -256,7 +256,7 @@ export function activate(context: vscode.ExtensionContext): void {
         title: "Run macro",
       });
       if (name) {
-        panel.runMacro(name);
+        await panel.runMacro(name);
         panel.focus();
       }
     }),

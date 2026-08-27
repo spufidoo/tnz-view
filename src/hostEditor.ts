@@ -74,7 +74,7 @@ export class HostEditorPanel {
       group: String(raw.group || "").trim() || undefined,
       host: String(raw.host || "").trim(),
       port: Number(raw.port),
-      secure: raw.secure !== false,
+      secure: raw.secure === true,
       verifyCert: raw.verifyCert !== false,
       luName: String(raw.luName || "").trim(),
       tn3270e: raw.tn3270e !== false,

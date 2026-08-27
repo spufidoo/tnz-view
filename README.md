@@ -32,10 +32,10 @@ settings), so they can also be edited as JSON.
 
 | Field | Meaning |
 | --- | --- |
-| host / port | Default ports: 992 TLS, 23 plain |
-| secure / verifyCert | TLS and certificate checking. A TLS host on a non-standard port still needs Secure on; a mismatch drops the session immediately |
+| host / port | A new profile starts on 23; switching the transport to TLS moves it to 992 |
+| secure / verifyCert | TLS and certificate checking. New profiles are plain telnet. A TLS host on a non-standard port still needs Secure on; a mismatch drops the session immediately |
 | psSize | Any `rowsxcols`, not just the standard models |
-| codePage | EBCDIC code page, e.g. `037` |
+| codePage | EBCDIC code page. Defaults to `037` |
 | luName / tn3270e | LU name requires TN3270E |
 | secLevel | Set to `1` for older TLS stacks (`ZTI_SECLEVEL`) |
 | extendedColor | Advertise colour capability to the host |
@@ -74,7 +74,7 @@ lower bound and raising the size one model at a time will keep failing.
 | Alt+Delete | Erase input |
 | Ctrl+Enter | New line |
 | Insert | Toggle insert |
-| Ctrl+R | Reset |
+| Ctrl+R, Right Ctrl | Reset |
 | Click / double-click | Cursor / cursor + ENTER |
 | Drag, Ctrl+C, Ctrl+V | Select, copy, paste into fields |
 
@@ -86,6 +86,9 @@ Keys can also play macros — text with `[action]` markers in it, such as
 `=3.4[enter][wait]MY.JCL[enter]`. `[wait]` holds until the host unlocks the
 keyboard, so a macro follows the host rather than guessing at delays. Define
 them in `tnzView.macros` and run them from a key or **TNZ 3270: Run Macro**.
+
+A macro can ask for what it types: `[prompt:Userid][enter][wait][password:Password][enter]`
+logs you on without a credential ever being written to a settings file.
 
 See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action name,
 the macro markers, and the keys that are reserved.

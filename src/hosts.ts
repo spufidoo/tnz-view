@@ -37,7 +37,10 @@ export async function deleteHost(id: string): Promise<void> {
 }
 
 export function normalizeHost(raw: Partial<HostProfile>): HostProfile {
-  const secure = raw.secure !== false;
+  // Absent means plain telnet on 23: the common case, and a profile that
+  // fails to connect is easier to reason about than one that hangs in a
+  // handshake the host never offered.
+  const secure = raw.secure === true;
   return {
     id: raw.id || randomUUID(),
     label: raw.label || raw.host || "host",

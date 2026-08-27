@@ -91,10 +91,10 @@ function applyHost(host, isNew) {
   el("f-label").value = host.label || "";
   el("f-group").value = host.group || "";
   el("f-host").value = host.host || "";
-  el("f-port").value = String(host.port || (host.secure === false ? 23 : 992));
+  el("f-port").value = String(host.port || (host.secure ? 992 : 23));
   el("f-psSize").value = host.psSize || "24x80";
   el("f-codePage").value = host.codePage || "037";
-  el("f-secure").value = host.secure === false ? "plain" : "tls";
+  el("f-secure").value = host.secure ? "tls" : "plain";
   el("f-secLevel").value =
     host.secLevel === undefined || host.secLevel === null
       ? ""

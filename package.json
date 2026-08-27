@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "repository": {
@@ -54,7 +54,7 @@
         "tnzView.macros": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A macro is text with `[action]` markers in it, for example `TSO[enter][wait]LISTC[enter]`. `[[` is a literal `[`. Markers are AID names (`[enter]`, `[pf3]`, `[pa1]`, `[clear]`), cursor keys (`[tab]`, `[home]`, `[eraseeof]`), `[wait]` or `[wait:5000]` to wait for the host, and `[pause:500]` for a fixed delay. Long macros may be an array of strings, which are joined. Do not put passwords here; settings files are not encrypted and sync between machines.",
+          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A macro is text with `[action]` markers in it, for example `TSO[enter][wait]LISTC[enter]`. `[[` is a literal `[`. Markers are AID names (`[enter]`, `[pf3]`, `[pa1]`, `[clear]`), cursor keys (`[tab]`, `[home]`, `[eraseeof]`), `[wait]` or `[wait:5000]` to wait for the host, `[pause:500]` for a fixed delay, and `[prompt:Label]` / `[password:Label]` to ask for a value when the macro runs. Long macros may be an array of strings, which are joined. Never type a password into this file; settings are stored in plain text and sync between machines. Use `[password:...]` instead.",
           "additionalProperties": {
             "oneOf": [
               {

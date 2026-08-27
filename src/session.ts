@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
-import { resolveMacro } from "./macros";
+import { fillPrompts, hasPrompt, resolveMacro } from "./macros";
 import { buildParms, getSyntax } from "./transfer";
 import {
   DEFAULT_COLORS,
@@ -67,7 +67,7 @@ export class SessionPanel {
       if (msg.op === "key" || msg.op === "click" || msg.op === "paste") {
         this.sidecar.send({ ...msg, sessionId: this.sessionId });
       } else if (msg.op === "macro") {
-        this.runMacro(String(msg.name ?? ""));
+        void this.runMacro(String(msg.name ?? ""));
       } else if (msg.op === "insert") {
         this.insertMode = Boolean(msg.value);
         this.setStatus();
@@ -163,8 +163,13 @@ export class SessionPanel {
   }
 
   /** Expand a named macro and hand the steps to the sidecar to replay. */
-  runMacro(name: string): void {
-    const steps = resolveMacro(name);
+  async runMacro(name: string): Promise<void> {
+    const parsed = resolveMacro(name);
+    if (!parsed) {
+      return;
+    }
+    const asked = hasPrompt(parsed);
+    const steps = asked ? await fillPrompts(name, parsed) : parsed;
     if (!steps) {
       return;
     }
@@ -174,6 +179,10 @@ export class SessionPanel {
       name,
       steps,
     });
+    if (asked) {
+      // The input boxes took the keyboard; give it back to the screen.
+      this.focus();
+    }
   }
 
   sendAid(aid: string): void {

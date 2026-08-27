@@ -49,6 +49,17 @@ Use `shift+` only for keys where Shift does not already change the character.
 `shift+f3` and `shift+tab` are right; a shifted letter arrives as that letter, so
 bind `a`, not `shift+a`.
 
+### Modifiers on their own
+
+A modifier tapped by itself is a chord in its own right, named for the side of
+the keyboard it is on: `leftctrl` `rightctrl` `leftalt` `rightalt` `leftshift`
+`rightshift` `leftmeta` `rightmeta`. This is how a real 3270 keyboard is laid
+out, where the keys a PC uses for Ctrl carry ENTER and RESET.
+
+They fire on release, and only when nothing else was pressed in between, so
+`rightctrl` still behaves as an ordinary modifier in `rightctrl`+C. Writing them
+with a `+`, as in `ctrl+rightctrl`, does nothing.
+
 ## Actions
 
 ### `aid:` — send an AID and unlock
@@ -134,7 +145,7 @@ keyboard and only the host can give it back.
 | `alt+delete` | Erase input |
 | `ctrl+enter` | New line |
 | `insert` | Toggle insert mode |
-| `ctrl+r` | Reset |
+| `ctrl+r`, `rightctrl` | Reset |
 
 Defaults follow [zti](https://github.com/IBM/tnz), the terminal front end shipped
 with tnz, wherever the two overlap.
@@ -169,6 +180,8 @@ long macros readable.
 | `[wait]` | Wait for the host to unlock the keyboard, up to 10 seconds |
 | `[wait:5000]` | The same, with an explicit timeout in milliseconds |
 | `[pause:500]` | Wait a fixed number of milliseconds |
+| `[prompt:Label]` | Ask for a value and type the answer |
+| `[password:Label]` | The same, with the box masked and the answer not remembered |
 | `[[` | A literal `[` |
 
 Anything outside the markers is typed into the current field.
@@ -183,11 +196,33 @@ A macro runs to completion on the session thread, so your keystrokes cannot
 interleave with it. If a step fails or a `[wait]` times out, the macro stops
 there and the status line names the step number.
 
+### Asking for values
+
+`[prompt:Label]` and `[password:Label]` stop and ask, then type your answer into
+the field the cursor is in. The label is what the box says; `[prompt]` and
+`[password]` on their own read "Value" and "Password".
+
+```json
+"tnzView.macros": {
+  "logon": "[prompt:Userid][enter][wait][password:Password][enter]",
+  "logon tso": "LOGON [prompt:Userid][enter][wait][password:Password][enter]"
+}
+```
+
+Both boxes appear before the first character is typed, because a macro is
+replayed in one go on the session thread. Dismissing either box with `Esc`
+abandons the whole macro, so a cancelled password never leaves a userid sitting
+on the screen. The keyboard returns to the 3270 by itself afterwards.
+
+Answers to `[prompt:...]` are offered back as the default next time the same
+label comes up, which saves retyping a userid; `[password:...]` answers are
+never kept, not in settings, not in memory between runs.
+
 ### Passwords
 
-Do not put passwords in a macro. Settings files are stored in plain text and
-sync between machines. Type the password yourself; a macro can still get you to
-the right screen and leave the cursor in the field.
+Never put a password in `tnzView.macros` itself. Settings files are stored in
+plain text and sync between machines. `[password:...]` exists so you do not have
+to: the value lives only as long as the macro takes to run.
 
 ## Reserved keys
 

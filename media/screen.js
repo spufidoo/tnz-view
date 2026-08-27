@@ -319,6 +319,27 @@ const KEY_ALIASES = {
   " ": "space",
 };
 
+const MODIFIER_KEYS = {
+  Control: "ctrl",
+  Alt: "alt",
+  Shift: "shift",
+  Meta: "meta",
+};
+
+/**
+ * Name a modifier pressed on its own, left and right apart.
+ *
+ * A 3270 keyboard puts ENTER and RESET on the keys a PC uses for Ctrl, so
+ * which one was pressed has to be part of the chord.
+ */
+function modifierChord(e) {
+  const name = MODIFIER_KEYS[e.key];
+  if (!name) {
+    return "";
+  }
+  return (e.location === 2 ? "right" : "left") + name;
+}
+
 function chordFor(e) {
   const key = KEY_ALIASES[e.key] || e.key.toLowerCase();
   let chord = "";
@@ -362,7 +383,18 @@ function runAction(action) {
   }
 }
 
+// Set while a modifier is held with nothing else pressed since. Acting on
+// keyup is what separates a solo Ctrl from the Ctrl that starts Ctrl+C.
+let soloModifier = "";
+
 screenEl.addEventListener("keydown", (e) => {
+  const modifier = modifierChord(e);
+  if (modifier) {
+    soloModifier = modifier;
+    return;
+  }
+  soloModifier = "";
+
   // Clipboard and select-all belong to the editor. Ctrl+C only means ATTN
   // when there is nothing to copy.
   if ((e.ctrlKey || e.metaKey) && ["c", "a", "v", "x"].includes(e.key.toLowerCase())) {
@@ -391,6 +423,20 @@ screenEl.addEventListener("keydown", (e) => {
       value: e.key,
       insert: insertMode,
     });
+  }
+});
+
+screenEl.addEventListener("keyup", (e) => {
+  const modifier = modifierChord(e);
+  const solo = soloModifier;
+  soloModifier = "";
+  if (!modifier || modifier !== solo) {
+    return;
+  }
+  const action = keymap[modifier];
+  if (action) {
+    e.preventDefault();
+    runAction(action);
   }
 });
 
