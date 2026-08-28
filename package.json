@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.5.3",
+  "version": "0.6.2",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "repository": {
@@ -85,6 +85,16 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Name of a `tnzView.macros` entry to run on Ctrl+click (Cmd+click on macOS) in a 3270 session. Empty means the click only moves the cursor. Typical value: `startlpar`."
+        },
+        "tnzView.fontFamily": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Default font for 3270 screens, as a CSS font list, e.g. `Cascadia Mono` or `\"IBM 3270\", Consolas`. A host profile with its own **Font** set overrides this. Empty uses the built-in monospace stack. Must be monospaced: columns sit on a fixed pitch, so a proportional font will not line up."
+        },
+        "tnzView.macroTrace": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Log every step a script macro takes to the **3270** output channel: what is typed, which AID key is sent, where the cursor was, and what `on_screen` found. Passwords from `ask_password` are replaced with asterisks. The channel opens automatically when a traced macro starts."
         },
         "tnzView.transfer.syntax": {
           "type": "string",

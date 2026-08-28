@@ -114,10 +114,11 @@ export interface ScriptAskEvent {
   maxLength?: number;
 }
 
-export interface ScriptTitleEvent {
-  op: "scriptTitle";
+/** A line of macro trace, destined for the output channel. */
+export interface TraceEvent {
+  op: "trace";
   sessionId: string;
-  title: string;
+  text: string;
 }
 
 export type SidecarEvent =
@@ -127,7 +128,7 @@ export type SidecarEvent =
   | ErrorEvent
   | TransferEvent
   | ScriptAskEvent
-  | ScriptTitleEvent;
+  | TraceEvent;
 
 export type TransferDirection = "download" | "upload";
 

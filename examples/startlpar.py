@@ -30,29 +30,32 @@ else:
 
 type(lpar + " " + userid)
 enter()
-wait_unlock(5)
 
-if on_screen("not authorized to use TSO"):
+# The keyboard comes back on the first reply, which is not the logon panel,
+# so wait for the panel itself rather than for the unlock.
+seen = wait_for("Password  ===>", "not authorized to use TSO", seconds=20)
+
+if seen == "not authorized to use TSO":
     warn(userid + " is not authorised to use " + lpar)
     pf3()
     return
 
-if on_screen("VTHB"):
-    warn("Application " + lpar + " does not exist.")
-    clear()
-    return
-
-set_title("BMC " + lpar + " " + userid)
-
-if on_screen("Password  ===>"):
-    home()
-    eraseeof()
-    type(ask_password("Password"))
-    enter()
-    wait_unlock(3)
-else:
+if not seen:
+    # VTHB is only tested here: on some systems it appears in a header, and
+    # racing it against the password prompt would match the wrong screen.
+    if on_screen("VTHB"):
+        warn("Application " + lpar + " does not exist.")
+        clear()
+        return
+    trace_screen()
     warn("Can't find the password prompt anywhere.")
     return
+
+home()
+eraseeof()
+type(ask_password("Password"))
+enter()
+wait_unlock(3)
 
 if on_screen("IKJ56425I") or on_screen("IKJ56418I"):
     warn("Userid " + userid + " is revoked on " + lpar)

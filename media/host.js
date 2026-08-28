@@ -67,6 +67,8 @@ const PREVIEW_ROWS = [
 
 let hostId = null;
 let statusTimer = null;
+// tnzView.fontFamily, used by any profile that leaves the Font box empty.
+let defaultFontFamily = "";
 
 const el = (id) => document.getElementById(id);
 
@@ -98,7 +100,8 @@ function setStatus(text, isError) {
 function renderPreview() {
   const colors = currentColors();
   const preview = el("preview");
-  const family = el("f-fontFamily").value;
+  // An empty box means "inherit", so preview what will actually be used.
+  const family = el("f-fontFamily").value.trim() || defaultFontFamily;
   preview.textContent = "";
   preview.style.background = colors.background;
   preview.style.fontFamily = fontStack(family);
@@ -145,6 +148,9 @@ function applyHost(host, isNew) {
   el("f-extendedColor").checked = host.extendedColor !== false;
   el("f-blink").checked = host.blink === true;
   el("f-fontFamily").value = host.fontFamily || "";
+  el("f-fontFamily").placeholder = defaultFontFamily
+    ? `${defaultFontFamily} (from settings)`
+    : "Default monospace";
   const colors = { ...DEFAULT_COLORS, ...(host.colors || {}) };
   for (const key of COLOR_KEYS) {
     el(`c-${key}`).value = colors[key];
@@ -217,6 +223,7 @@ document.addEventListener("keydown", (e) => {
 window.addEventListener("message", (event) => {
   const msg = event.data;
   if (msg.op === "load") {
+    defaultFontFamily = String(msg.defaultFontFamily || "").trim();
     applyHost(msg.host, msg.isNew);
   } else if (msg.op === "saved") {
     el("heading").textContent = msg.host.label || "Host";

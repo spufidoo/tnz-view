@@ -61,6 +61,11 @@ export function activate(context: vscode.ExtensionContext): void {
         }
         refreshKeymapView(context.extensionUri);
       }
+      if (e.affectsConfiguration("tnzView.fontFamily")) {
+        for (const panel of sessions.values()) {
+          panel.sendConfig();
+        }
+      }
     }),
     { dispose: () => sidecar.dispose() }
   );

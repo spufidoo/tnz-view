@@ -300,6 +300,10 @@ window.addEventListener("message", (event) => {
     paint();
   } else if (msg.op === "focus") {
     screenEl.focus();
+  } else if (msg.op === "oia") {
+    const text = String(msg.message || "");
+    document.getElementById("oia-msg").textContent =
+      text.length > 240 ? `${text.slice(0, 240)}…` : text;
   } else if (msg.op === "transfer") {
     // The screen does not update while IND$FILE runs, so say why.
     document.getElementById("oia-msg").textContent =

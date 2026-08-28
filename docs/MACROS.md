@@ -321,17 +321,74 @@ wrote or trust, the same as a Vista `.mac`.
 | `type(text)` | Type into the current field |
 | `enter()` `clear()` `attn()` `pf1()`…`pf24()` `pa1()`…`pa3()` | AID |
 | `home()` `tab()` `eraseeof()` and the other nav names | Cursor / edit |
-| `on_screen("text")` | True if that string is anywhere on the screen |
+| `on_screen("text")` | True if that string is on the screen *now* |
+| `wait_for("a", "b", seconds=10)` | Wait for one of the fragments; returns the one that matched, or `""` on timeout |
 | `screen(row, col, length)` | Slice, 1-based row and column |
 | `word_at(click)` | Non-blank run at that cell (or at the cursor) |
 | `click.row` `click.col` | Last click, or the cursor if there was none |
 | `ask(prompt, default=None, max=None)` | Input box; Escape stops the script |
 | `ask_password(prompt)` | Masked box; not stored |
-| `warn(message)` | Modal warning, then continue |
-| `set_title(title)` | Session tab title |
+| `warn(message)` | Notification plus a line on the status bar; the script carries on |
+| `trace(...)` | Write a line to the 3270 output channel |
+| `trace_screen()` | Write the whole screen to the output channel |
 
 Rows and columns are 1-based, like a 3270. `wait_unlock` takes **seconds**,
 not milliseconds (tapes use milliseconds in `[wait:5000]`).
+
+`warn` does not block. It raises a VS Code notification and puts the text on the
+session status line, so follow it with `return` if the script should stop.
+
+### Waiting for a screen, not for an unlock
+
+`wait_unlock` returns as soon as the host hands the keyboard back, and that first
+reply is often not the panel you want. A TSO logon answers in a fraction of a
+second and only then paints the password panel, so `on_screen` immediately after
+`wait_unlock` tests the wrong screen and the macro takes its error branch.
+
+Wait for the content instead, and let it tell you which screen arrived:
+
+```python
+seen = wait_for("Password  ===>", "not authorized to use TSO", seconds=20)
+if seen == "not authorized to use TSO":
+    warn("Not authorised")
+    return
+if not seen:
+    trace_screen()
+    warn("Timed out waiting for the logon panel")
+    return
+```
+
+This is Vista's `Wait(n, condition)`. Order matters less than specificity: a
+fragment that also appears in a header will match the wrong screen, so test the
+vague ones only after the specific ones have failed. Use `pause()` only when
+nothing on the screen marks the moment you need.
+
+### Tracing a script
+
+Set `tnzView.macroTrace` to `true` and every step is logged to the **3270**
+output channel, which opens by itself when a traced macro starts:
+
+```
+[DB2B] macro startlpar: start (…\macros\startlpar.py)
+[DB2B] ask('Enter LPAR') -> 'DB2B'
+[DB2B] type('DB2B MVSMJD') [1,7 unlocked]
+[DB2B] enter() [1,18 unlocked]
+[DB2B] wait_unlock(10) returned after 0.31s [4,16 unlocked]
+[DB2B] on_screen('Password  ===>') -> False
+[DB2B] warn Can't find the password prompt anywhere.
+```
+
+The square brackets are the cursor row and column, then whether the host had the
+keyboard. That pair is usually what explains a keystroke the host rejects: text
+typed at the wrong cursor position lands in the wrong field, and text typed while
+the keyboard is locked is discarded.
+
+Anything `ask_password` returned is replaced with asterisks before a line is
+logged, so a traced logon does not put the password in the channel.
+
+`trace("...")` writes your own line whatever the setting, and `trace_screen()`
+dumps the screen with row numbers, which is the quickest way to see the exact
+spacing of a prompt you are matching with `on_screen`.
 
 ### Example
 

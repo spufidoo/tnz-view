@@ -138,11 +138,21 @@ The **Appearance** section of the host settings tab controls this:
 
 ## Font
 
-The **Font** box in the **Appearance** section of the host settings tab sets the
-screen font for that profile, so different hosts can look different. Leave it empty
-for the built-in stack of Lucida Console, Cascadia Mono, Consolas and Courier New.
-Type a font name, or a comma-separated list, and the preview below the palette
-shows it. Saving repaints any open session for that host immediately.
+`tnzView.fontFamily` sets the font for every session:
+
+```json
+"tnzView.fontFamily": "Cascadia Mono"
+```
+
+The **Font** box in the **Appearance** section of the host settings tab overrides
+that for one profile, so a single host can look different. Leave the box empty to
+follow the setting; the placeholder shows which font that currently is. Type a font
+name, or a comma-separated list, and the preview below the palette shows it.
+Saving repaints any open session for that host immediately, and changing the
+setting repaints every session that has not overridden it.
+
+With neither set you get the built-in stack of Lucida Console, Cascadia Mono,
+Consolas and Courier New.
 
 The built-in stack is always appended to whatever you name, so a font the machine
 does not have falls back to a monospace rather than to something proportional. The

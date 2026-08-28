@@ -425,9 +425,13 @@ class _Click:
 class _ScriptApi:
     """Functions injected into a user script's globals."""
 
-    def __init__(self, session: "Session") -> None:
+    def __init__(self, session: "Session", tracing: bool = False) -> None:
         self.session = session
         self._ask_n = 0
+        self.tracing = tracing
+        # Anything ask_password() returned, so a trace of what was typed can
+        # never carry the password into the log.
+        self._secrets: list[str] = []
 
     def namespace(self) -> dict:
         api = {
@@ -436,12 +440,14 @@ class _ScriptApi:
             "pause": self.pause,
             "type": self.type,
             "on_screen": self.on_screen,
+            "wait_for": self.wait_for,
             "screen": self.screen,
             "word_at": self.word_at,
             "ask": self.ask,
             "ask_password": self.ask_password,
             "warn": self.warn,
-            "set_title": self.set_title,
+            "trace": self.trace,
+            "trace_screen": self.trace_screen,
             "click": self._click_obj(),
         }
         for name, method in AID.items():
@@ -479,6 +485,51 @@ class _ScriptApi:
             raise TnzError("the session was lost")
         return tns
 
+    def _redact(self, text: str) -> str:
+        for secret in self._secrets:
+            if secret:
+                text = text.replace(secret, "********")
+        return text
+
+    def _trace(self, text: str) -> None:
+        emit(
+            {
+                "op": "trace",
+                "sessionId": self.session.session_id,
+                "text": self._redact(text),
+            }
+        )
+
+    def _step(self, text: str) -> None:
+        """Trace an action, but only when the user asked for a trace."""
+        if self.tracing:
+            self._trace(text)
+
+    def _where(self) -> str:
+        """Cursor and keyboard state, the two things that explain a stray key."""
+        tns = self._tns()
+        cols = tns.maxcol or 80
+        row = tns.curadd // cols + 1
+        col = tns.curadd % cols + 1
+        state = "locked" if (tns.pwait or tns.system_lock_wait) else "unlocked"
+        return f"[{row},{col} {state}]"
+
+    def trace(self, *parts) -> None:
+        """Log a message whether or not tracing is switched on."""
+        self._trace(" ".join(str(part) for part in parts))
+
+    def trace_screen(self) -> None:
+        """Log the screen as the script sees it, with row numbers."""
+        tns = self._tns()
+        text = self._plain_text()
+        cols = tns.maxcol or 80
+        lines = [f"screen {tns.maxrow}x{cols} {self._where()}"]
+        for r in range(tns.maxrow):
+            line = text[r * cols : (r + 1) * cols].rstrip()
+            if line:
+                lines.append(f"{r + 1:3d}|{line}")
+        self._trace("\n".join(lines))
+
     def _click_obj(self) -> _Click:
         tns = self._tns()
         if self.session.last_click:
@@ -491,6 +542,7 @@ class _ScriptApi:
 
     def _aid_fn(self, method: str):
         def run() -> None:
+            self._step(f"{method}() {self._where()}")
             getattr(self._tns(), method)()
             self.session._emit_screen()
 
@@ -499,6 +551,7 @@ class _ScriptApi:
 
     def _nav_fn(self, method: str):
         def run() -> None:
+            self._step(f"{method}() {self._where()}")
             getattr(self._tns(), method)()
             self.session._emit_screen()
 
@@ -510,14 +563,22 @@ class _ScriptApi:
         return not (tns.pwait or tns.system_lock_wait)
 
     def wait_unlock(self, seconds: float = 10) -> None:
+        started = time.monotonic()
         self.session._wait_unlock(self._tns(), float(seconds) * 1000)
         self.session._emit_screen()
+        self._step(
+            f"wait_unlock({seconds:g}) returned after "
+            f"{time.monotonic() - started:.2f}s {self._where()}"
+        )
 
     def pause(self, seconds: float) -> None:
+        self._step(f"pause({float(seconds):g})")
         time.sleep(float(seconds))
 
     def type(self, text: str) -> None:
-        self._tns().key_data("" if text is None else str(text))
+        value = "" if text is None else str(text)
+        self._step(f"type({value!r}) {self._where()}")
+        self._tns().key_data(value)
         self.session._emit_screen()
 
     def _plain_text(self) -> str:
@@ -531,7 +592,42 @@ class _ScriptApi:
         return text
 
     def on_screen(self, fragment: str) -> bool:
-        return str(fragment) in self._plain_text()
+        found = str(fragment) in self._plain_text()
+        self._step(f"on_screen({str(fragment)!r}) -> {found}")
+        return found
+
+    def wait_for(self, *fragments: str, seconds: float = 10) -> str:
+        """Pump the session until one of the fragments is on the screen.
+
+        An unlocked keyboard is not the screen you asked for: a logon replies
+        several times before it prompts for a password. Returns the fragment
+        that matched, or "" on timeout, so the script can branch.
+        """
+        tns = self._tns()
+        wanted = [str(f) for f in fragments]
+        started = time.monotonic()
+        deadline = started + float(seconds)
+        while True:
+            text = self._plain_text()
+            for fragment in wanted:
+                if fragment in text:
+                    self._step(
+                        f"wait_for -> {fragment!r} after "
+                        f"{time.monotonic() - started:.2f}s {self._where()}"
+                    )
+                    return fragment
+            if tns.seslost:
+                raise TnzError("the session was lost")
+            if time.monotonic() > deadline:
+                self._step(
+                    f"wait_for({', '.join(repr(f) for f in wanted)}) timed out "
+                    f"after {seconds:g}s {self._where()}"
+                )
+                return ""
+            tns.wait(timeout=0.1)
+            if tns.updated:
+                tns.updated = False
+                self.session._emit_screen()
 
     def screen(self, row: int, col: int, length: int) -> str:
         tns = self._tns()
@@ -558,26 +654,25 @@ class _ScriptApi:
     def ask(self, prompt: str, default: str | None = None, max: int | None = None):
         reply = self._ask("input", prompt, default, max)
         if reply.get("cancelled"):
+            self._step("ask cancelled, stopping")
             raise _ScriptCancelled()
-        return reply.get("value") or ""
+        value = reply.get("value") or ""
+        self._step(f"ask({str(prompt)!r}) -> {value!r}")
+        return value
 
     def ask_password(self, prompt: str = "Password"):
         reply = self._ask("password", prompt, None, None)
         if reply.get("cancelled"):
+            self._step("ask_password cancelled, stopping")
             raise _ScriptCancelled()
-        return reply.get("value") or ""
+        value = reply.get("value") or ""
+        self._secrets.append(value)
+        self._step(f"ask_password({str(prompt)!r}) -> {len(value)} characters")
+        return value
 
     def warn(self, message: str) -> None:
+        self._trace(f"warn {message}")
         self._ask("warn", message, None, None)
-
-    def set_title(self, title: str) -> None:
-        emit(
-            {
-                "op": "scriptTitle",
-                "sessionId": self.session.session_id,
-                "title": str(title),
-            }
-        )
 
     def _ask(
         self,
@@ -1069,7 +1164,9 @@ class Session:
                 }
             )
             return
-        api = _ScriptApi(self)
+        api = _ScriptApi(self, tracing=bool(cmd.get("trace")))
+        if api.tracing:
+            api._trace(f"macro {name}: start ({path})")
         try:
             # Wrapped in a function so a script can stop with a top-level
             # return, the way an emulator macro exits.
@@ -1084,6 +1181,7 @@ class Session:
         except _ScriptCancelled:
             pass
         except (TnzError, ValueError) as exc:
+            api._trace(f"macro {name}: stopped: {exc}")
             emit(
                 {
                     "op": "error",
@@ -1099,6 +1197,8 @@ class Session:
                     "message": f"macro {name}: {traceback.format_exc(limit=4)}",
                 }
             )
+        if api.tracing:
+            api._trace(f"macro {name}: end")
         try:
             self._emit_screen()
         except Exception:

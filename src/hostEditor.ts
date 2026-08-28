@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { normalizeColors } from "./hosts";
+import { getDefaultFontFamily } from "./session";
 import { HostProfile } from "./types";
 
 type SaveHandler = (host: HostProfile) => Promise<void>;
@@ -102,6 +103,7 @@ export class HostEditorPanel {
       op: "load",
       host,
       isNew: this.isNew,
+      defaultFontFamily: getDefaultFontFamily(),
     });
   }
 
@@ -235,7 +237,7 @@ export class HostEditorPanel {
       <span class="label-spacer"></span>
       <p class="hint">Must be monospaced: columns sit on a fixed pitch, so a
       proportional font will not line up. The size is not set here, it grows to
-      fill the panel. Leave empty for the built-in stack.</p>
+      fill the panel. Leave empty to follow <code>tnzView.fontFamily</code>.</p>
 
       <span class="label-spacer"></span>
       <p class="hint" id="font-warning"></p>

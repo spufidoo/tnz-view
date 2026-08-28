@@ -21,7 +21,6 @@ export class SessionPanel {
   private readonly panel: vscode.WebviewPanel;
   private insertMode = false;
   private transferSeq = 0;
-  private windowTitle: string | undefined;
   private readonly pending = new Map<string, (ev: TransferEvent) => void>();
 
   constructor(
@@ -117,8 +116,13 @@ export class SessionPanel {
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
-      fontFamily: this.host.fontFamily ?? "",
+      fontFamily: this.fontFamily(),
     });
+  }
+
+  /** The profile's font, or the global default when it has none. */
+  private fontFamily(): string {
+    return (this.host.fontFamily || "").trim() || getDefaultFontFamily();
   }
 
   /**
@@ -156,9 +160,10 @@ export class SessionPanel {
       void this.answerScriptAsk(ev);
       return;
     }
-    if (ev.op === "scriptTitle") {
-      this.windowTitle = ev.title.trim() || undefined;
-      this.setStatus();
+    if (ev.op === "trace") {
+      for (const line of ev.text.split("\n")) {
+        log().info(`[${this.host.label}] ${line}`);
+      }
       return;
     }
     void this.panel.webview.postMessage(ev);
@@ -173,7 +178,7 @@ export class SessionPanel {
       this.setStatus();
     }
     if (ev.op === "status" && ev.seslost) {
-      this.panel.title = `${this.windowTitle || this.host.label} (lost)`;
+      this.panel.title = `${this.host.label} (lost)`;
     }
     if (ev.op === "error" && !ev.message.includes("Input Inhibit")) {
       log().error(`session ${this.host.label}: ${ev.message}`);
@@ -200,11 +205,18 @@ export class SessionPanel {
         );
         return;
       }
+      const trace = vscode.workspace
+        .getConfiguration("tnzView")
+        .get<boolean>("macroTrace", false);
+      if (trace) {
+        log().show(true);
+      }
       this.sidecar.send({
         op: "script",
         sessionId: this.sessionId,
         name,
         path: resolved.path,
+        trace,
       });
       this.focus();
       return;
@@ -241,7 +253,11 @@ export class SessionPanel {
       this.focus();
     };
     if (ev.kind === "warn") {
-      await vscode.window.showWarningMessage(ev.prompt, { modal: true });
+      // A toast plus the operator information area, the way a real 3270 tells
+      // you something went wrong: no dialog to dismiss before the next step.
+      void vscode.window.showWarningMessage(ev.prompt);
+      log().warn(`macro warn: ${ev.prompt}`);
+      void this.panel.webview.postMessage({ op: "oia", message: ev.prompt });
       reply(false);
       return;
     }
@@ -277,7 +293,6 @@ export class SessionPanel {
 
   connect(): void {
     this.panel.title = this.host.label;
-    this.windowTitle = undefined;
     this.sidecar.send({
       op: "connect",
       sessionId: this.sessionId,
@@ -295,7 +310,7 @@ export class SessionPanel {
   }
 
   private setStatus(): void {
-    const name = this.windowTitle || this.host.label;
+    const name = this.host.label;
     const tls = this.host.secure ? "TLS" : "plain";
     const ins = this.insertMode ? "INS" : "REP";
     this.panel.title = `${name} · ${ins} · ${tls}`;
@@ -313,7 +328,7 @@ export class SessionPanel {
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
-      fontFamily: this.host.fontFamily ?? "",
+      fontFamily: this.fontFamily(),
     }).replace(/</g, "\\u003c");
     return `<!DOCTYPE html>
 <html lang="en">
@@ -342,6 +357,14 @@ export class SessionPanel {
 </body>
 </html>`;
   }
+}
+
+/** The workspace-wide font, used by any profile that does not set one. */
+export function getDefaultFontFamily(): string {
+  return vscode.workspace
+    .getConfiguration("tnzView")
+    .get<string>("fontFamily", "")
+    .trim();
 }
 
 function firstLine(message: string): string {
