@@ -54,7 +54,7 @@
         "tnzView.macros": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A macro is text with `[action]` markers in it, for example `TSO[enter][wait]LISTC[enter]`. `[[` is a literal `[`. Markers are AID names (`[enter]`, `[pf3]`, `[pa1]`, `[clear]`), cursor keys (`[tab]`, `[home]`, `[eraseeof]`), `[wait]` or `[wait:5000]` to wait for the host, `[pause:500]` for a fixed delay, and `[prompt:Label]` / `[password:Label]` to ask for a value when the macro runs. Long macros may be an array of strings, which are joined. Never type a password into this file; settings are stored in plain text and sync between machines. Use `[password:...]` instead.",
+          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A macro is text with `[action]` markers in it, for example `TSO[enter][wait]LISTC[enter]`. `[[` is a literal `[`. Markers are AID names (`[enter]`, `[pf3]`, `[pa1]`, `[clear]`), cursor keys (`[tab]`, `[home]`, `[eraseeof]`), `[wait]` or `[wait:5000]` to wait for the host, `[pause:500]` for a fixed delay, and `[prompt:Label]` / `[password:Label]` to ask for a value when the macro runs. Long macros may be an array of strings, which are joined. Never type a password into this file; settings are stored in plain text and sync between machines. Use `[password:...]` instead. See [docs/MACROS.md](https://github.com/spufidoo/tnz-view/blob/main/docs/MACROS.md).",
           "additionalProperties": {
             "oneOf": [
               {

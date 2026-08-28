@@ -89,7 +89,7 @@ the fields are identical, which is why 3270 applications put a legend like
 | `aid:attn` | ATTN. An interrupt rather than a submission — under TSO this is what breaks into a running program |
 
 Because these are the keys that unlock a locked keyboard, a macro step that
-follows one should be `[wait]`; see [macros](#macros).
+follows one should be `[wait]`; see [MACROS.md](MACROS.md).
 
 ### `nav:` — move the cursor or edit the screen
 
@@ -123,7 +123,7 @@ keyboard and only the host can give it back.
 ### `macro:` — play a named macro
 
 `macro:<name>` runs an entry from `tnzView.macros`. See
-[macros](#macros) below.
+[MACROS.md](MACROS.md).
 
 ## Defaults
 
@@ -152,77 +152,9 @@ with tnz, wherever the two overlap.
 
 ## Macros
 
-A macro is a string of text with `[action]` markers in it, the notation
-emulators have used for this for decades. Define them in `tnzView.macros` and
-play them from a key or from **TNZ 3270: Run Macro**.
-
-```json
-"tnzView.macros": {
-  "listcat": "LISTC[enter]",
-  "back to primary": "[pf3][pf3][pf3]",
-  "edit jcl": ["=3.4[enter][wait]", "MY.JCL[enter]"]
-},
-"tnzView.keymap": {
-  "ctrl+l": "macro:listcat",
-  "ctrl+alt+p": "macro:back to primary"
-}
-```
-
-An array of strings is joined without a separator, which is only there to keep
-long macros readable.
-
-### Markers
-
-| Marker | Meaning |
-| --- | --- |
-| `[enter]` `[clear]` `[attn]` `[pa1]`–`[pa3]` `[pf1]`–`[pf24]` | Send an AID |
-| `[tab]` `[home]` `[eraseeof]` and the rest of the `nav:` names | Cursor and edit keys |
-| `[wait]` | Wait for the host to unlock the keyboard, up to 10 seconds |
-| `[wait:5000]` | The same, with an explicit timeout in milliseconds |
-| `[pause:500]` | Wait a fixed number of milliseconds |
-| `[prompt:Label]` | Ask for a value and type the answer |
-| `[password:Label]` | The same, with the box masked and the answer not remembered |
-| `[[` | A literal `[` |
-
-Anything outside the markers is typed into the current field.
-
-### Waiting
-
-Use `[wait]`, not `[pause:...]`, after anything that talks to the host. Sending
-an AID locks the keyboard until the host replies, so `[wait]` returns as soon as
-the new screen arrives rather than guessing at a duration.
-
-A macro runs to completion on the session thread, so your keystrokes cannot
-interleave with it. If a step fails or a `[wait]` times out, the macro stops
-there and the status line names the step number.
-
-### Asking for values
-
-`[prompt:Label]` and `[password:Label]` stop and ask, then type your answer into
-the field the cursor is in. The label is what the box says; `[prompt]` and
-`[password]` on their own read "Value" and "Password".
-
-```json
-"tnzView.macros": {
-  "logon": "[prompt:Userid][enter][wait][password:Password][enter]",
-  "logon tso": "LOGON [prompt:Userid][enter][wait][password:Password][enter]"
-}
-```
-
-Both boxes appear before the first character is typed, because a macro is
-replayed in one go on the session thread. Dismissing either box with `Esc`
-abandons the whole macro, so a cancelled password never leaves a userid sitting
-on the screen. The keyboard returns to the 3270 by itself afterwards.
-
-Answers to `[prompt:...]` are offered back as the default next time the same
-label comes up, which saves retyping a userid; `[password:...]` answers are
-never kept, not in settings, not in memory between runs.
-
-### Passwords
-
-Never put a password in `tnzView.macros` itself. Settings files are stored in
-plain text and sync between machines. `[password:...]` exists so you do not have
-to: the value lives only as long as the macro takes to run.
+Named sequences live in `tnzView.macros` and are played with `macro:<name>` or
+**TNZ 3270: Run Macro**. The full marker list, execution order, and examples
+are in [MACROS.md](MACROS.md).
 
 ## Reserved keys
 

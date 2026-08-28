@@ -82,22 +82,25 @@ Every binding can be changed with the `tnzView.keymap` setting, and open session
 pick up edits immediately. **TNZ 3270: Show Keyboard Map** lists what is in
 effect.
 
-Keys can also play macros — text with `[action]` markers in it, such as
-`=3.4[enter][wait]MY.JCL[enter]`. `[wait]` holds until the host unlocks the
-keyboard, so a macro follows the host rather than guessing at delays. Define
-them in `tnzView.macros` and run them from a key or **TNZ 3270: Run Macro**.
-
-A macro can ask for what it types: `[prompt:Userid][enter][wait][password:Password][enter]`
-logs you on without a credential ever being written to a settings file.
-
 See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action name,
-the macro markers, and the keys that are reserved.
+and the keys that are reserved.
 
 The webview scales the font so the whole 3270 screen fits. Resizing the editor does not change rows×cols.
 
 Screen text is rendered as real text, so it can be selected and copied with the
 usual shortcuts. Non-display fields (passwords) are blanked in the sidecar, so
 they never reach the webview and cannot be copied.
+
+## Macros
+
+**TNZ 3270: Run Macro**, or a keymap chord `macro:<name>`, plays a named
+sequence from `tnzView.macros`. A macro is text with `[action]` markers, for
+example `=3.4[enter][wait]MY.JCL[enter]`. `[wait]` holds until the host unlocks
+the keyboard. `[prompt:Userid]` and `[password:Password]` ask before anything
+is typed, so a logon need not store a credential in settings.
+
+See [docs/MACROS.md](docs/MACROS.md) for every marker, how a tape is replayed,
+and examples.
 
 ## File transfer
 
@@ -138,7 +141,7 @@ The **Colour** section of the host settings tab controls this:
 src/           TypeScript extension (tree, sidecar client, session + settings tabs)
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
-docs/          Keyboard map and file transfer references
+docs/          Keyboard map, macros, and file transfer references
 HISTORY.md     How the extension was built (this chat)
 ```
 
