@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
 import {
@@ -24,6 +26,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.logUri.fsPath,
     context.globalStorageUri.fsPath
   );
+  const macrosDir = path.join(context.globalStorageUri.fsPath, "macros");
   const sessions = new Map<string, SessionPanel>();
   let focusedId: string | undefined;
 
@@ -187,17 +190,23 @@ export function activate(context: vscode.ExtensionContext): void {
           return;
         }
         tree.setStatus(host.id, "connecting");
-        const panel = new SessionPanel(sidecar, host, context.extensionUri, {
-          onDispose: () => {
-            sessions.delete(host.id);
-            if (focusedId === host.id) {
-              focusedId = undefined;
-            }
-            tree.setStatus(host.id, "disconnected");
-            syncSession();
-          },
-          onViewState: syncSession,
-        });
+        const panel = new SessionPanel(
+          sidecar,
+          host,
+          context.extensionUri,
+          macrosDir,
+          {
+            onDispose: () => {
+              sessions.delete(host.id);
+              if (focusedId === host.id) {
+                focusedId = undefined;
+              }
+              tree.setStatus(host.id, "disconnected");
+              syncSession();
+            },
+            onViewState: syncSession,
+          }
+        );
         sessions.set(host.id, panel);
         focusedId = host.id;
         panel.connect();
@@ -231,6 +240,22 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("tnzView.showKeymap", () => {
       showKeymap(context.extensionUri);
+    }),
+    vscode.commands.registerCommand("tnzView.openMacrosFolder", async () => {
+      fs.mkdirSync(macrosDir, { recursive: true });
+      const example = path.join(macrosDir, "startlpar.py");
+      const bundled = path.join(
+        context.extensionPath,
+        "examples",
+        "startlpar.py"
+      );
+      if (!fs.existsSync(example) && fs.existsSync(bundled)) {
+        fs.copyFileSync(bundled, example);
+      }
+      await vscode.commands.executeCommand(
+        "revealFileInOS",
+        vscode.Uri.file(macrosDir)
+      );
     }),
     vscode.commands.registerCommand("tnzView.session.runMacro", async () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;

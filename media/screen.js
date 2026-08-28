@@ -40,9 +40,18 @@ function applyColors() {
   document.body.style.background = colors.background;
 }
 
-const FONT_STACK =
+const DEFAULT_FONT_STACK =
   '"Lucida Console", "Cascadia Mono", Consolas, "Courier New", monospace';
 const LINE_RATIO = 1.2;
+
+// Always fall back to the stack, so a font the machine lacks degrades to a
+// monospace rather than to whatever the webview's default proportional is.
+function fontStack(family) {
+  const wanted = String(family || "").trim();
+  return wanted ? `${wanted}, ${DEFAULT_FONT_STACK}` : DEFAULT_FONT_STACK;
+}
+
+let FONT_STACK = fontStack(config.fontFamily);
 
 const screenEl = document.getElementById("screen");
 const gridEl = document.createElement("div");
@@ -285,6 +294,8 @@ window.addEventListener("message", (event) => {
       keymap = msg.keymap;
     }
     applyColors();
+    FONT_STACK = fontStack(msg.fontFamily);
+    fit();
     rowSig.fill(null);
     paint();
   } else if (msg.op === "focus") {
@@ -465,7 +476,26 @@ gridEl.addEventListener("mouseup", (e) => {
     return;
   }
   const { row, col } = cellFromEvent(e);
-  vscode.postMessage({ op: "click", row, col, double: false });
+  vscode.postMessage({
+    op: "click",
+    row,
+    col,
+    double: false,
+    ctrl: Boolean(e.ctrlKey || e.metaKey),
+  });
+});
+
+// A 3270 drops the marked block once it has been copied. Clearing after the
+// event lets the browser read the selection first, and taking focus back means
+// the next keystroke types instead of landing on the selection.
+document.addEventListener("copy", () => {
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+    }
+    screenEl.focus();
+  }, 0);
 });
 
 document.addEventListener("paste", (e) => {

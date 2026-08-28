@@ -94,13 +94,14 @@ they never reach the webview and cannot be copied.
 ## Macros
 
 **TNZ 3270: Run Macro**, or a keymap chord `macro:<name>`, plays a named
-sequence from `tnzView.macros`. A macro is text with `[action]` markers, for
-example `=3.4[enter][wait]MY.JCL[enter]`. `[wait]` holds until the host unlocks
-the keyboard. `[prompt:Userid]` and `[password:Password]` ask before anything
-is typed, so a logon need not store a credential in settings.
+entry from `tnzView.macros`. A **tape** is text with `[action]` markers, for
+example `=3.4[enter][wait]MY.JCL[enter]`. A **script** is
+`{ "script": "startlpar" }`, a Python file in the macros folder that can read
+the screen and ask as it runs. **Open Macros Folder** creates that folder.
+Ctrl+click runs `tnzView.clickMacro` if set.
 
-See [docs/MACROS.md](docs/MACROS.md) for every marker, how a tape is replayed,
-and examples.
+See [docs/MACROS.md](docs/MACROS.md) for tape markers, the script API, and
+examples.
 
 ## File transfer
 
@@ -124,7 +125,7 @@ sends extended colour orders, tnz switches the screen into extended colour mode 
 the full seven-colour palette plus reverse video and underscore are used. The status
 line shows `BASE COLOR` or `EXT COLOR` so you can tell which set is in play.
 
-The **Colour** section of the host settings tab controls this:
+The **Appearance** section of the host settings tab controls this:
 
 - **Extended colour** advertises colour capability in the 3270 query reply, which is
   what invites the host to send extended colour orders. Turning it off keeps the
@@ -135,6 +136,25 @@ The **Colour** section of the host settings tab controls this:
   preview. Saving repaints any open session for that host immediately; the extended
   colour toggle takes effect on the next connect.
 
+## Font
+
+The **Font** box in the **Appearance** section of the host settings tab sets the
+screen font for that profile, so different hosts can look different. Leave it empty
+for the built-in stack of Lucida Console, Cascadia Mono, Consolas and Courier New.
+Type a font name, or a comma-separated list, and the preview below the palette
+shows it. Saving repaints any open session for that host immediately.
+
+The built-in stack is always appended to whatever you name, so a font the machine
+does not have falls back to a monospace rather than to something proportional. The
+editor also warns when the font you typed does not appear to be installed, since
+the fallback is otherwise silent.
+
+It must be a monospaced font. Columns sit on a fixed pitch measured from the
+character width, so a proportional font leaves the grid ragged and the cursor in the
+wrong place. The size is not configurable: it grows to make the full 80 (or however
+many) columns fill the panel, so resize the pane or drag the tab out to a bigger
+window to get bigger text.
+
 ## Layout
 
 ```
@@ -142,6 +162,7 @@ src/           TypeScript extension (tree, sidecar client, session + settings ta
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
 docs/          Keyboard map, macros, and file transfer references
+examples/      Sample session scripts (copied into the macros folder on first open)
 HISTORY.md     How the extension was built (this chat)
 ```
 

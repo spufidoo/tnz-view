@@ -13,6 +13,7 @@ import queue
 import re
 import sys
 import threading
+import textwrap
 import time
 import traceback
 
@@ -406,6 +407,202 @@ for _i in range(1, 25):
     AID[f"pf{_i}"] = f"pf{_i}"
 
 
+class _ScriptCancelled(Exception):
+    """User dismissed an ask() box; the script should stop quietly."""
+
+
+def _script_print(*args, **kwargs) -> None:
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
+class _Click:
+    def __init__(self, row: int, col: int) -> None:
+        self.row = row
+        self.col = col
+
+
+class _ScriptApi:
+    """Functions injected into a user script's globals."""
+
+    def __init__(self, session: "Session") -> None:
+        self.session = session
+        self._ask_n = 0
+
+    def namespace(self) -> dict:
+        api = {
+            "unlocked": self.unlocked,
+            "wait_unlock": self.wait_unlock,
+            "pause": self.pause,
+            "type": self.type,
+            "on_screen": self.on_screen,
+            "screen": self.screen,
+            "word_at": self.word_at,
+            "ask": self.ask,
+            "ask_password": self.ask_password,
+            "warn": self.warn,
+            "set_title": self.set_title,
+            "click": self._click_obj(),
+        }
+        for name, method in AID.items():
+            api[name] = self._aid_fn(method)
+        for name, method in NAV.items():
+            api[name] = self._nav_fn(method)
+        return {
+            "__builtins__": {
+                "True": True,
+                "False": False,
+                "None": None,
+                "abs": abs,
+                "bool": bool,
+                "dict": dict,
+                "enumerate": enumerate,
+                "float": float,
+                "int": int,
+                "isinstance": isinstance,
+                "len": len,
+                "list": list,
+                "max": max,
+                "min": min,
+                "print": _script_print,
+                "range": range,
+                "str": str,
+                "tuple": tuple,
+                "zip": zip,
+            },
+            **api,
+        }
+
+    def _tns(self):
+        tns = self.session.tns
+        if tns is None:
+            raise TnzError("the session was lost")
+        return tns
+
+    def _click_obj(self) -> _Click:
+        tns = self._tns()
+        if self.session.last_click:
+            row, col = self.session.last_click
+        else:
+            cols = tns.maxcol
+            row = tns.curadd // cols + 1
+            col = tns.curadd % cols + 1
+        return _Click(row, col)
+
+    def _aid_fn(self, method: str):
+        def run() -> None:
+            getattr(self._tns(), method)()
+            self.session._emit_screen()
+
+        run.__name__ = method
+        return run
+
+    def _nav_fn(self, method: str):
+        def run() -> None:
+            getattr(self._tns(), method)()
+            self.session._emit_screen()
+
+        run.__name__ = method
+        return run
+
+    def unlocked(self) -> bool:
+        tns = self._tns()
+        return not (tns.pwait or tns.system_lock_wait)
+
+    def wait_unlock(self, seconds: float = 10) -> None:
+        self.session._wait_unlock(self._tns(), float(seconds) * 1000)
+        self.session._emit_screen()
+
+    def pause(self, seconds: float) -> None:
+        time.sleep(float(seconds))
+
+    def type(self, text: str) -> None:
+        self._tns().key_data("" if text is None else str(text))
+        self.session._emit_screen()
+
+    def _plain_text(self) -> str:
+        tns = self._tns()
+        text = tns.scrstr(0, 0, rstrip=False)
+        size = tns.maxrow * tns.maxcol
+        if len(text) < size:
+            text = text + (" " * (size - len(text)))
+        elif len(text) > size:
+            text = text[:size]
+        return text
+
+    def on_screen(self, fragment: str) -> bool:
+        return str(fragment) in self._plain_text()
+
+    def screen(self, row: int, col: int, length: int) -> str:
+        tns = self._tns()
+        text = self._plain_text()
+        start = (int(row) - 1) * tns.maxcol + (int(col) - 1)
+        return text[start : start + int(length)]
+
+    def word_at(self, click: _Click | None = None) -> str:
+        tns = self._tns()
+        pos = click or self._click_obj()
+        text = self._plain_text()
+        cols = tns.maxcol
+        idx = (int(pos.row) - 1) * cols + (int(pos.col) - 1)
+        if idx < 0 or idx >= len(text):
+            return ""
+        left = idx
+        while left > 0 and not text[left - 1].isspace():
+            left -= 1
+        right = idx
+        while right < len(text) and not text[right].isspace():
+            right += 1
+        return text[left:right].strip()
+
+    def ask(self, prompt: str, default: str | None = None, max: int | None = None):
+        reply = self._ask("input", prompt, default, max)
+        if reply.get("cancelled"):
+            raise _ScriptCancelled()
+        return reply.get("value") or ""
+
+    def ask_password(self, prompt: str = "Password"):
+        reply = self._ask("password", prompt, None, None)
+        if reply.get("cancelled"):
+            raise _ScriptCancelled()
+        return reply.get("value") or ""
+
+    def warn(self, message: str) -> None:
+        self._ask("warn", message, None, None)
+
+    def set_title(self, title: str) -> None:
+        emit(
+            {
+                "op": "scriptTitle",
+                "sessionId": self.session.session_id,
+                "title": str(title),
+            }
+        )
+
+    def _ask(
+        self,
+        kind: str,
+        prompt: str,
+        default: str | None,
+        max_length: int | None,
+    ) -> dict:
+        self._ask_n += 1
+        ask_id = f"a{self._ask_n}"
+        payload = {
+            "op": "scriptAsk",
+            "sessionId": self.session.session_id,
+            "askId": ask_id,
+            "kind": kind,
+            "prompt": str(prompt),
+        }
+        if default is not None:
+            payload["value"] = str(default)
+        if max_length:
+            payload["maxLength"] = int(max_length)
+        emit(payload)
+        return self.session._wait_script_reply(ask_id)
+
+
 class Session:
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
@@ -413,6 +610,7 @@ class Session:
         self.stop = threading.Event()
         self.tns: Tnz | None = None
         self.secure = False
+        self.last_click: tuple[int, int] | None = None
         self.thread = threading.Thread(
             target=self._run, name=f"tnz-{session_id}", daemon=True
         )
@@ -517,6 +715,10 @@ class Session:
             self._transfer(cmd)
         elif op == "macro":
             self._macro(cmd)
+        elif op == "script":
+            self._script(cmd)
+        elif op == "scriptReply":
+            pass
         else:
             emit(
                 {
@@ -745,6 +947,7 @@ class Session:
             return
         row = int(cmd.get("row") or 1)
         col = int(cmd.get("col") or 1)
+        self.last_click = (row, col)
         try:
             tns.set_cursor_position(row, col)
             if cmd.get("double"):
@@ -840,6 +1043,96 @@ class Session:
             self._emit_screen()
         except Exception:
             pass
+
+    def _script(self, cmd: dict) -> None:
+        """Run a user Python file against this session.
+
+        The file is executed with a small API (type, enter, on_screen, ask,
+        …) and a restricted __builtins__. It runs on the session thread so
+        keystrokes cannot interleave. ask() and warn() block until the
+        editor answers on the same command queue.
+        """
+        tns = self.tns
+        if tns is None:
+            return
+        name = cmd.get("name") or ""
+        path = cmd.get("path") or ""
+        try:
+            with open(path, encoding="utf-8") as file:
+                source = file.read()
+        except OSError as exc:
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"macro {name}: cannot read {path}: {exc}",
+                }
+            )
+            return
+        api = _ScriptApi(self)
+        try:
+            # Wrapped in a function so a script can stop with a top-level
+            # return, the way an emulator macro exits.
+            wrapped = (
+                "def __tnz_script():\n"
+                + textwrap.indent(source, "    ")
+                + "\n__tnz_script()\n"
+            )
+            compiled = compile(wrapped, path, "exec")
+            ns = api.namespace()
+            exec(compiled, ns, ns)
+        except _ScriptCancelled:
+            pass
+        except (TnzError, ValueError) as exc:
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"macro {name}: {exc}",
+                }
+            )
+        except Exception:
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"macro {name}: {traceback.format_exc(limit=4)}",
+                }
+            )
+        try:
+            self._emit_screen()
+        except Exception:
+            pass
+
+    def _wait_script_reply(self, ask_id: str) -> dict:
+        while True:
+            if self.stop.is_set() or self.tns is None:
+                return {"cancelled": True}
+            try:
+                cmd = self.commands.get(timeout=0.1)
+            except queue.Empty:
+                tns = self.tns
+                if tns is not None:
+                    try:
+                        tns.wait(timeout=0.05)
+                    except Exception:
+                        pass
+                    if tns.seslost:
+                        return {"cancelled": True}
+                    if tns.updated:
+                        tns.updated = False
+                        try:
+                            self._emit_screen()
+                        except Exception:
+                            pass
+                continue
+            op = cmd.get("op")
+            if op == "scriptReply" and cmd.get("askId") == ask_id:
+                return cmd
+            if op == "disconnect":
+                self.commands.put(cmd)
+                return {"cancelled": True}
+            # Drop keys while a dialog is up so they cannot land in the field.
 
     def _transfer(self, cmd: dict) -> None:
         """Run IND$FILE on the session thread.

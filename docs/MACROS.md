@@ -1,30 +1,31 @@
 # Macros
 
-A macro is a string of text with `[action]` markers in it, the notation
-emulators have used for this for decades. Define them in `tnzView.macros` and
-play them from a key or from **TNZ 3270: Run Macro**.
+A macro is either a **tape** (text with `[action]` markers) or a **script** (a
+Python file that can read the screen and ask questions as it runs). Define
+both in `tnzView.macros` and play them from a key or from **TNZ 3270: Run
+Macro**. Tapes and scripts share the picker; they do not replace each other.
 
 ```json
 "tnzView.macros": {
   "listcat": "LISTC[enter]",
   "back to primary": "[pf3][pf3][pf3]",
   "edit jcl": ["=3.4[enter][wait]", "MY.JCL[enter]"],
-  "logon": "[home][prompt:Userid][enter][wait][password:Password][enter]"
+  "logon": "[home][prompt:Userid][enter][wait][password:Password][enter]",
+  "startlpar": { "script": "startlpar" }
 },
 "tnzView.keymap": {
   "ctrl+l": "macro:listcat",
   "ctrl+alt+l": "macro:logon"
-}
+},
+"tnzView.clickMacro": "startlpar"
 ```
 
-This is a **keystroke tape**: it types, moves the cursor, sends AID keys, waits
-for the keyboard to unlock, and can ask you for values *before* it starts. It
-is not a program. There is no `if`, no reading the screen, no `OnScreen`, no
-click-the-word-under-the-cursor, and no stopping mid-run to ask a second
-question after ENTER. Those belong to emulators with a macro language (Vista
-TN3270, for example), not to this setting.
+## Tapes
 
-## How to run one
+A tape types, moves the cursor, sends AID keys, waits for the keyboard to
+unlock, and can ask you for values *before* it starts. It is not a program:
+there is no `if`, and `[wait]` does not look at the screen text. For those,
+use a [script](#scripts).
 
 A 3270 session tab must be focused.
 
@@ -271,6 +272,74 @@ the extension if you still see it.
 **The password appeared on the screen.** The host field is not a 3270
 non-display field. The sidecar only blanks fields the host marked hidden;
 `[password:]` only masks the *box you type into*.
+
+## Scripts
+
+A script is a Python file that talks to the live session: it can read the
+screen, branch, and ask questions *after* ENTER. Tape macros keep working
+unchanged.
+
+### Where the file lives
+
+**TNZ 3270: Open Macros Folder** creates (and reveals) the macros directory
+under this editor's global storage, and copies `startlpar.py` there the first
+time if it is missing.
+
+| Setting | File |
+| --- | --- |
+| `{ "script": "startlpar" }` | `<macros folder>/startlpar.py` |
+| `{ "script": "startlpar.py" }` | Same |
+| `{ "script": "C:\\\\Users\\\\…\\\\mine.py" }` | That path |
+
+A bare name may only contain letters, digits, `.`, `_` and `-`. Relative paths
+with `..` are rejected.
+
+The folder is per machine and per editor. It is not `settings.json` and it is
+not git. Do not put passwords in the `.py` file.
+
+`tnzView.clickMacro` is the name of a macro (tape or script) to run on
+Ctrl+click (Cmd+click on macOS). The click is stored first, so `word_at(click)`
+sees the LPAR you pointed at.
+
+### How a script runs
+
+The file is executed on the session thread with a small API (below) and a
+restricted `__builtins__` (no `open`, no `import`). Top-level `return` stops
+the script, as does Escape on an `ask` / `ask_password` box. Errors show on
+the status line. `print` goes to the 3270 log, not into the JSON pipe.
+
+A script is **not** a sandbox against a hostile file. Only run scripts you
+wrote or trust, the same as a Vista `.mac`.
+
+### API
+
+| Function | Meaning |
+| --- | --- |
+| `unlocked()` | Keyboard is not held by the host |
+| `wait_unlock(seconds=10)` | Wait until unlock; raises if the host never does |
+| `pause(seconds)` | Sleep, host or not |
+| `type(text)` | Type into the current field |
+| `enter()` `clear()` `attn()` `pf1()`…`pf24()` `pa1()`…`pa3()` | AID |
+| `home()` `tab()` `eraseeof()` and the other nav names | Cursor / edit |
+| `on_screen("text")` | True if that string is anywhere on the screen |
+| `screen(row, col, length)` | Slice, 1-based row and column |
+| `word_at(click)` | Non-blank run at that cell (or at the cursor) |
+| `click.row` `click.col` | Last click, or the cursor if there was none |
+| `ask(prompt, default=None, max=None)` | Input box; Escape stops the script |
+| `ask_password(prompt)` | Masked box; not stored |
+| `warn(message)` | Modal warning, then continue |
+| `set_title(title)` | Session tab title |
+
+Rows and columns are 1-based, like a 3270. `wait_unlock` takes **seconds**,
+not milliseconds (tapes use milliseconds in `[wait:5000]`).
+
+### Example
+
+`examples/startlpar.py` in the repo is the Vista Start LPAR flow: click a
+name, map a short userid code, log on, stop with a message if the screen is
+wrong. After **Open Macros Folder**, that file is in the macros directory as
+`startlpar.py`. Point `tnzView.macros` at it and set `tnzView.clickMacro` as
+in the sample at the top of this page.
 
 ## Related
 

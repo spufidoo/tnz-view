@@ -57,6 +57,7 @@ export function normalizeHost(raw: Partial<HostProfile>): HostProfile {
     extendedColor: raw.extendedColor !== false,
     blink: raw.blink === true,
     colors: normalizeColors(raw.colors),
+    fontFamily: String(raw.fontFamily || "").trim(),
   };
 }
 

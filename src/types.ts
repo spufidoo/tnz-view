@@ -42,6 +42,8 @@ export interface HostProfile {
   /** Render the extended-highlight blink attribute instead of ignoring it. */
   blink?: boolean;
   colors?: HostColors;
+  /** CSS font list for the screen. Empty means the built-in monospace stack. */
+  fontFamily?: string;
 }
 
 export type SessionStatus =
@@ -102,12 +104,30 @@ export interface TransferEvent {
   parms?: string;
 }
 
+export interface ScriptAskEvent {
+  op: "scriptAsk";
+  sessionId: string;
+  askId: string;
+  kind: "input" | "password" | "warn";
+  prompt: string;
+  value?: string;
+  maxLength?: number;
+}
+
+export interface ScriptTitleEvent {
+  op: "scriptTitle";
+  sessionId: string;
+  title: string;
+}
+
 export type SidecarEvent =
   | { op: "ready" }
   | ScreenEvent
   | StatusEvent
   | ErrorEvent
-  | TransferEvent;
+  | TransferEvent
+  | ScriptAskEvent
+  | ScriptTitleEvent;
 
 export type TransferDirection = "download" | "upload";
 

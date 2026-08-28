@@ -87,6 +87,7 @@ export class HostEditorPanel {
       extendedColor: raw.extendedColor !== false,
       blink: raw.blink === true,
       colors: normalizeColors(raw.colors),
+      fontFamily: String(raw.fontFamily || "").trim(),
     };
     await this.onSave(host);
     this.host = host;
@@ -213,8 +214,32 @@ export class HostEditorPanel {
   </section>
 
   <section>
-    <h2>Colour</h2>
+    <h2>Appearance</h2>
     <div class="grid">
+      <label for="f-fontFamily">Font</label>
+      <input id="f-fontFamily" type="text" list="fonts" placeholder="Default monospace" />
+      <datalist id="fonts">
+        <option value="Lucida Console"></option>
+        <option value="Cascadia Mono"></option>
+        <option value="Consolas"></option>
+        <option value="Courier New"></option>
+        <option value="IBM Plex Mono"></option>
+        <option value="IBM 3270"></option>
+        <option value="3270Medium"></option>
+        <option value="DejaVu Sans Mono"></option>
+        <option value="JetBrains Mono"></option>
+        <option value="Menlo"></option>
+        <option value="Monaco"></option>
+      </datalist>
+
+      <span class="label-spacer"></span>
+      <p class="hint">Must be monospaced: columns sit on a fixed pitch, so a
+      proportional font will not line up. The size is not set here, it grows to
+      fill the panel. Leave empty for the built-in stack.</p>
+
+      <span class="label-spacer"></span>
+      <p class="hint" id="font-warning"></p>
+
       <span class="label-spacer"></span>
       <label class="check"><input id="f-extendedColor" type="checkbox" /> Extended colour</label>
 

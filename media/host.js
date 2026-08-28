@@ -14,6 +14,39 @@ const DEFAULT_COLORS = {
 
 const COLOR_KEYS = Object.keys(DEFAULT_COLORS);
 
+const DEFAULT_FONT_STACK =
+  '"Lucida Console", "Cascadia Mono", Consolas, "Courier New", monospace';
+
+const measure = document.createElement("canvas").getContext("2d");
+const SAMPLE = "mmmiiilll0O@#WM";
+
+function fontStack(family) {
+  const wanted = String(family || "").trim();
+  return wanted ? `${wanted}, ${DEFAULT_FONT_STACK}` : DEFAULT_FONT_STACK;
+}
+
+/**
+ * Rough check that the first named font exists, by seeing whether it renders
+ * any differently from the generic fallbacks. A missing font is otherwise
+ * silent: the screen just keeps the old look and nothing says why.
+ */
+function fontMissing(family) {
+  const first = String(family || "")
+    .split(",")[0]
+    .trim()
+    .replace(/^["']|["']$/g, "");
+  if (!first) {
+    return "";
+  }
+  const widths = ["monospace", "serif", "sans-serif"].map((generic) => {
+    measure.font = `72px ${generic}`;
+    const base = measure.measureText(SAMPLE).width;
+    measure.font = `72px "${first}", ${generic}`;
+    return measure.measureText(SAMPLE).width === base;
+  });
+  return widths.every(Boolean) ? first : "";
+}
+
 const PREVIEW_ROWS = [
   [
     ["green", " Unprotected normal   "],
@@ -65,8 +98,15 @@ function setStatus(text, isError) {
 function renderPreview() {
   const colors = currentColors();
   const preview = el("preview");
+  const family = el("f-fontFamily").value;
   preview.textContent = "";
   preview.style.background = colors.background;
+  preview.style.fontFamily = fontStack(family);
+
+  const missing = fontMissing(family);
+  el("font-warning").textContent = missing
+    ? `${missing} does not look installed on this machine, so the built-in stack is being used.`
+    : "";
   for (const row of PREVIEW_ROWS) {
     const line = document.createElement("div");
     for (const [key, text] of row) {
@@ -104,6 +144,7 @@ function applyHost(host, isNew) {
   el("f-tn3270e").checked = host.tn3270e !== false;
   el("f-extendedColor").checked = host.extendedColor !== false;
   el("f-blink").checked = host.blink === true;
+  el("f-fontFamily").value = host.fontFamily || "";
   const colors = { ...DEFAULT_COLORS, ...(host.colors || {}) };
   for (const key of COLOR_KEYS) {
     el(`c-${key}`).value = colors[key];
@@ -130,6 +171,7 @@ function collect() {
     extendedColor: el("f-extendedColor").checked,
     blink: el("f-blink").checked,
     colors: currentColors(),
+    fontFamily: el("f-fontFamily").value,
   };
 }
 
@@ -146,6 +188,8 @@ el("f-secure").addEventListener("change", () => {
 for (const key of COLOR_KEYS) {
   el(`c-${key}`).addEventListener("input", renderPreview);
 }
+
+el("f-fontFamily").addEventListener("input", renderPreview);
 
 el("reset").addEventListener("click", () => {
   for (const key of COLOR_KEYS) {

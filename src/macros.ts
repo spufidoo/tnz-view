@@ -1,16 +1,28 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import { AID_NAMES, NAV_NAMES } from "./keymap";
 
 /**
- * A macro is text with `[action]` markers in it, in the style emulators have
- * used for decades:
+ * A tape macro is text with `[action]` markers in it, in the style emulators
+ * have used for decades:
  *
  *     LOGON APPLID(TSO)[enter][wait]USERID[tab]PASSWORD[enter]
  *
- * `[[` is a literal `[`. Long macros can be written as an array of strings,
+ * `[[` is a literal `[`. Long tapes can be written as an array of strings,
  * which are joined without a separator.
+ *
+ * A script macro is `{ "script": "startlpar" }` (a file in the macros
+ * folder) or `{ "script": "C:\\\\path\\\\to\\\\file.py" }`.
  */
-export type MacroSource = string | string[];
+export type TapeSource = string | string[];
+export type ScriptSource = { script: string };
+export type MacroSource = TapeSource | ScriptSource;
+
+export type ResolvedMacro =
+  | { kind: "tape"; steps: MacroStep[] }
+  | { kind: "script"; path: string };
+
+const SCRIPT_NAME = /^[A-Za-z0-9._-]+$/;
 
 export type MacroStep =
   | { kind: "text"; value: string }
@@ -33,7 +45,7 @@ export function getMacros(): Record<string, MacroSource> {
 }
 
 /** Parse a macro, throwing MacroError with the offending marker named. */
-export function parseMacro(source: MacroSource): MacroStep[] {
+export function parseMacro(source: TapeSource): MacroStep[] {
   const text = Array.isArray(source) ? source.join("") : String(source ?? "");
   const steps: MacroStep[] = [];
   let literal = "";
@@ -156,8 +168,44 @@ export async function fillPrompts(
   return filled;
 }
 
+export function isScriptSource(source: unknown): source is ScriptSource {
+  return (
+    typeof source === "object" &&
+    source !== null &&
+    !Array.isArray(source) &&
+    typeof (source as ScriptSource).script === "string"
+  );
+}
+
+/**
+ * Resolve `{ "script": "name" }` to a `.py` file.
+ *
+ * A bare name is looked up in the macros folder. An absolute path is used as
+ * given. Anything else is rejected so a setting cannot walk out of the folder
+ * with `../`.
+ */
+export function scriptPathFor(spec: string, macrosDir: string): string {
+  const trimmed = spec.trim();
+  if (!trimmed) {
+    throw new MacroError("script path is empty");
+  }
+  if (path.isAbsolute(trimmed)) {
+    return trimmed;
+  }
+  const base = trimmed.replace(/\.py$/i, "");
+  if (!SCRIPT_NAME.test(base)) {
+    throw new MacroError(
+      "script name may only contain letters, digits, dot, underscore and hyphen"
+    );
+  }
+  return path.join(macrosDir, `${base}.py`);
+}
+
 /** Parse a named macro from settings. Returns undefined and warns on error. */
-export function resolveMacro(name: string): MacroStep[] | undefined {
+export function resolveNamedMacro(
+  name: string,
+  macrosDir: string
+): ResolvedMacro | undefined {
   const source = getMacros()[name];
   if (source === undefined) {
     void vscode.window.showWarningMessage(
@@ -165,12 +213,24 @@ export function resolveMacro(name: string): MacroStep[] | undefined {
     );
     return undefined;
   }
+  if (isScriptSource(source)) {
+    try {
+      const file = scriptPathFor(source.script, macrosDir);
+      return { kind: "script", path: file };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      void vscode.window.showErrorMessage(
+        `TNZ 3270: macro "${name}": ${message}`
+      );
+      return undefined;
+    }
+  }
   try {
     const steps = parseMacro(source);
     if (!steps.length) {
       throw new MacroError("the macro is empty");
     }
-    return steps;
+    return { kind: "tape", steps };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     void vscode.window.showErrorMessage(
@@ -179,3 +239,4 @@ export function resolveMacro(name: string): MacroStep[] | undefined {
     return undefined;
   }
 }
+

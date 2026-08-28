@@ -1,12 +1,14 @@
+import * as fs from "fs";
 import * as vscode from "vscode";
 import { resolveKeymap } from "./keymap";
 import { log } from "./log";
 import { Sidecar } from "./sidecar";
-import { fillPrompts, hasPrompt, resolveMacro } from "./macros";
+import { fillPrompts, hasPrompt, resolveNamedMacro } from "./macros";
 import { buildParms, getSyntax } from "./transfer";
 import {
   DEFAULT_COLORS,
   HostProfile,
+  ScriptAskEvent,
   SidecarEvent,
   TransferEvent,
   TransferRequest,
@@ -19,12 +21,14 @@ export class SessionPanel {
   private readonly panel: vscode.WebviewPanel;
   private insertMode = false;
   private transferSeq = 0;
+  private windowTitle: string | undefined;
   private readonly pending = new Map<string, (ev: TransferEvent) => void>();
 
   constructor(
     private readonly sidecar: Sidecar,
     public host: HostProfile,
     extensionUri: vscode.Uri,
+    private readonly macrosDir: string,
     private readonly hooks: { onDispose: () => void; onViewState: () => void }
   ) {
     this.sessionId = host.id;
@@ -64,8 +68,19 @@ export class SessionPanel {
     this.panel.onDidChangeViewState(() => this.hooks.onViewState());
 
     this.panel.webview.onDidReceiveMessage((msg: { op: string; [k: string]: unknown }) => {
-      if (msg.op === "key" || msg.op === "click" || msg.op === "paste") {
+      if (msg.op === "key" || msg.op === "paste") {
         this.sidecar.send({ ...msg, sessionId: this.sessionId });
+      } else if (msg.op === "click") {
+        this.sidecar.send({ ...msg, sessionId: this.sessionId });
+        if (msg.ctrl) {
+          const name = vscode.workspace
+            .getConfiguration("tnzView")
+            .get<string>("clickMacro", "")
+            .trim();
+          if (name) {
+            void this.runMacro(name);
+          }
+        }
       } else if (msg.op === "macro") {
         void this.runMacro(String(msg.name ?? ""));
       } else if (msg.op === "insert") {
@@ -102,6 +117,7 @@ export class SessionPanel {
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
+      fontFamily: this.host.fontFamily ?? "",
     });
   }
 
@@ -136,6 +152,15 @@ export class SessionPanel {
     if (ev.sessionId && ev.sessionId !== this.sessionId) {
       return;
     }
+    if (ev.op === "scriptAsk") {
+      void this.answerScriptAsk(ev);
+      return;
+    }
+    if (ev.op === "scriptTitle") {
+      this.windowTitle = ev.title.trim() || undefined;
+      this.setStatus();
+      return;
+    }
     void this.panel.webview.postMessage(ev);
     if (ev.op === "transfer") {
       if (ev.state === "done") {
@@ -148,7 +173,7 @@ export class SessionPanel {
       this.setStatus();
     }
     if (ev.op === "status" && ev.seslost) {
-      this.panel.title = `${this.host.label} (lost)`;
+      this.panel.title = `${this.windowTitle || this.host.label} (lost)`;
     }
     if (ev.op === "error" && !ev.message.includes("Input Inhibit")) {
       log().error(`session ${this.host.label}: ${ev.message}`);
@@ -162,14 +187,30 @@ export class SessionPanel {
     }
   }
 
-  /** Expand a named macro and hand the steps to the sidecar to replay. */
+  /** Expand a named tape or script and hand it to the sidecar. */
   async runMacro(name: string): Promise<void> {
-    const parsed = resolveMacro(name);
-    if (!parsed) {
+    const resolved = resolveNamedMacro(name, this.macrosDir);
+    if (!resolved) {
       return;
     }
-    const asked = hasPrompt(parsed);
-    const steps = asked ? await fillPrompts(name, parsed) : parsed;
+    if (resolved.kind === "script") {
+      if (!fs.existsSync(resolved.path)) {
+        void vscode.window.showErrorMessage(
+          `TNZ 3270: macro "${name}": no file at ${resolved.path}. Use Open Macros Folder to create it.`
+        );
+        return;
+      }
+      this.sidecar.send({
+        op: "script",
+        sessionId: this.sessionId,
+        name,
+        path: resolved.path,
+      });
+      this.focus();
+      return;
+    }
+    const asked = hasPrompt(resolved.steps);
+    const steps = asked ? await fillPrompts(name, resolved.steps) : resolved.steps;
     if (!steps) {
       return;
     }
@@ -180,9 +221,49 @@ export class SessionPanel {
       steps,
     });
     if (asked) {
-      // The input boxes took the keyboard; give it back to the screen.
       this.focus();
     }
+  }
+
+  private async answerScriptAsk(ev: ScriptAskEvent): Promise<void> {
+    const reply = (cancelled: boolean, value?: string) => {
+      try {
+        this.sidecar.send({
+          op: "scriptReply",
+          sessionId: this.sessionId,
+          askId: ev.askId,
+          cancelled,
+          value: value ?? "",
+        });
+      } catch {
+        /* sidecar gone */
+      }
+      this.focus();
+    };
+    if (ev.kind === "warn") {
+      await vscode.window.showWarningMessage(ev.prompt, { modal: true });
+      reply(false);
+      return;
+    }
+    const value = await vscode.window.showInputBox({
+      title: `Macro`,
+      prompt: ev.prompt,
+      value: ev.kind === "password" ? undefined : ev.value,
+      password: ev.kind === "password",
+      ignoreFocusOut: true,
+      validateInput:
+        ev.maxLength && ev.maxLength > 0
+          ? (s) =>
+              s.length > ev.maxLength!
+                ? `At most ${ev.maxLength} characters`
+                : undefined
+          : undefined,
+    });
+    if (value === undefined) {
+      reply(true);
+      return;
+    }
+    reply(false, value);
   }
 
   sendAid(aid: string): void {
@@ -196,6 +277,7 @@ export class SessionPanel {
 
   connect(): void {
     this.panel.title = this.host.label;
+    this.windowTitle = undefined;
     this.sidecar.send({
       op: "connect",
       sessionId: this.sessionId,
@@ -213,9 +295,10 @@ export class SessionPanel {
   }
 
   private setStatus(): void {
+    const name = this.windowTitle || this.host.label;
     const tls = this.host.secure ? "TLS" : "plain";
     const ins = this.insertMode ? "INS" : "REP";
-    this.panel.title = `${this.host.label} · ${ins} · ${tls}`;
+    this.panel.title = `${name} · ${ins} · ${tls}`;
   }
 
   private html(webview: vscode.Webview, extensionUri: vscode.Uri): string {
@@ -230,6 +313,7 @@ export class SessionPanel {
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
+      fontFamily: this.host.fontFamily ?? "",
     }).replace(/</g, "\\u003c");
     return `<!DOCTYPE html>
 <html lang="en">

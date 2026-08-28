@@ -174,6 +174,7 @@ current field.
 | Action | Result |
 | --- | --- |
 | Click | Move the cursor |
+| Ctrl+click (Cmd+click on macOS) | Move the cursor and run `tnzView.clickMacro`, if set |
 | Double-click | Move the cursor and send ENTER |
 | Drag | Select text |
 
