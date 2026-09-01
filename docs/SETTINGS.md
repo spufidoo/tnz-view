@@ -192,7 +192,7 @@ macro that prompts with `ask_password`.
 
 A working extract from a user `settings.json`. Hosts, fonts, macros, and keymap
 overrides sit alongside each other; anything not listed here uses the defaults
-above (`tnzView.selection` is `block`, transfers use TSO syntax). Three of the
+above, so transfers here use TSO syntax. Three of the
 profiles are shown so the shape is obvious: a dark BMC session with its own font,
 a light Compuware session that inherits the global font, and a TLS host on a
 non-standard port.
@@ -285,6 +285,7 @@ the original used `[password:Password]` (or `ask_password` in a script) instead.
         }
     ],
     "tnzView.fontFamily": "Consolas",
+    "tnzView.selection": "block",
     "tnzView.macros": {
         "password": "[password:Password]",
         "probe": "[prompt:Type something]",
