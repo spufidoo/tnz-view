@@ -35,11 +35,19 @@ body {
 #grid {
   position: relative;
   white-space: pre;
-  user-select: text;
   -webkit-user-select: text;
+  user-select: text;
   box-shadow: 0 0 0 1px #222629;
   font-variant-ligatures: none;
   font-kerning: none;
+}
+
+/* Block selection draws its own rectangle, so the browser's linear text
+   selection is turned off to keep the two from fighting. */
+#grid.block-select {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: crosshair;
 }
 
 .row {
@@ -63,6 +71,16 @@ body {
   mix-blend-mode: difference;
 }
 
+/* Same difference-blend trick as the cursor, so the marked rectangle reads as
+   reverse video over any colour scheme. */
+#mark {
+  position: absolute;
+  pointer-events: none;
+  background: #ffffff;
+  mix-blend-mode: difference;
+  display: none;
+}
+
 #status {
   flex: 0 0 22px;
   display: flex;
@@ -72,6 +90,7 @@ body {
   background: var(--status-bg);
   color: var(--status-fg);
   font-size: 12px;
+  -webkit-user-select: none;
   user-select: none;
 }
 

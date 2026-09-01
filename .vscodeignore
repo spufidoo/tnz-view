@@ -7,4 +7,5 @@ src/**
 tsconfig.json
 **/*.map
 sidecar/__pycache__/**
+media/icon-source.svg
 node_modules/**

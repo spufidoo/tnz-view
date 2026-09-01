@@ -76,7 +76,10 @@ lower bound and raising the size one model at a time will keep failing.
 | Insert | Toggle insert |
 | Ctrl+R, Right Ctrl | Reset |
 | Click / double-click | Cursor / cursor + ENTER |
-| Drag, Ctrl+C, Ctrl+V | Select, copy, paste into fields |
+| Drag | Mark a rectangle (block) or a run of text (stream) |
+| Ctrl+C | Copy the marked block, else ATTN |
+| Ctrl+A | Mark the whole screen (block mode) |
+| Ctrl+V | Paste into fields |
 
 Every binding can be changed with the `tnzView.keymap` setting, and open sessions
 pick up edits immediately. **TNZ 3270: Show Keyboard Map** lists what is in
@@ -87,9 +90,19 @@ and the keys that are reserved.
 
 The webview scales the font so the whole 3270 screen fits. Resizing the editor does not change rows×cols.
 
-Screen text is rendered as real text, so it can be selected and copied with the
-usual shortcuts. Non-display fields (passwords) are blanked in the sidecar, so
-they never reach the webview and cannot be copied.
+## Selection and copy
+
+`tnzView.selection` chooses how selecting works:
+
+- **block** (default) marks a rectangle of rows and columns, like Vista TN3270
+  and PCOMM. Drag to mark, Shift+click to extend, Ctrl+A to mark the screen, and
+  Ctrl+C to copy the rectangle. A plain click still positions the cursor.
+- **stream** selects a linear run of characters like a text editor, which also
+  allows dragging text out to another app and the webview's own right-click Copy.
+
+Either way Ctrl+C copies and Ctrl+V pastes, and copying clears the mark. Ctrl+C
+with nothing marked is still ATTN. Non-display fields (passwords) read as blanks
+in both modes, so they can never be copied.
 
 ## Macros
 
@@ -165,13 +178,18 @@ wrong place. The size is not configurable: it grows to make the full 80 (or howe
 many) columns fill the panel, so resize the pane or drag the tab out to a bigger
 window to get bigger text.
 
+## Settings
+
+Every `tnzView.*` setting is listed in [docs/SETTINGS.md](docs/SETTINGS.md),
+with what it does, its default, and where it applies.
+
 ## Layout
 
 ```
 src/           TypeScript extension (tree, sidecar client, session + settings tabs)
 media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
-docs/          Keyboard map, macros, and file transfer references
+docs/          Settings, keyboard map, macros, and file transfer references
 examples/      Sample session scripts (copied into the macros folder on first open)
 HISTORY.md     How the extension was built (this chat)
 ```

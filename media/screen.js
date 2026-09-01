@@ -58,8 +58,80 @@ const gridEl = document.createElement("div");
 gridEl.id = "grid";
 const cursorEl = document.createElement("div");
 cursorEl.id = "cursor";
+const markEl = document.createElement("div");
+markEl.id = "mark";
 gridEl.appendChild(cursorEl);
+gridEl.appendChild(markEl);
 screenEl.appendChild(gridEl);
+
+// "block" marks a row/column rectangle like Vista; "stream" is the browser's
+// linear text selection. Set from config, updated live on a config message.
+let selectionMode = config.selection === "stream" ? "stream" : "block";
+// The marked rectangle, 1-based inclusive. Corners are stored as dragged; read
+// them through the min/max helpers, since a drag can go up or left.
+let mark = null;
+let dragAnchor = null;
+let dragging = false;
+
+function applySelectionMode() {
+  gridEl.classList.toggle("block-select", selectionMode === "block");
+  clearMark();
+}
+
+function clearMark() {
+  if (mark) {
+    mark = null;
+    drawMark();
+  }
+}
+
+function drawMark() {
+  if (!mark || selectionMode !== "block") {
+    markEl.style.display = "none";
+    return;
+  }
+  const top = Math.min(mark.r1, mark.r2) - 1;
+  const left = Math.min(mark.c1, mark.c2) - 1;
+  const rows = Math.abs(mark.r1 - mark.r2) + 1;
+  const cols = Math.abs(mark.c1 - mark.c2) + 1;
+  markEl.style.display = "block";
+  markEl.style.left = `${left * cellW}px`;
+  markEl.style.top = `${top * cellH}px`;
+  markEl.style.width = `${cols * cellW}px`;
+  markEl.style.height = `${rows * cellH}px`;
+}
+
+// The marked cells as text, one line per row. Non-display fields read as
+// spaces so a copied block can never carry a password out of a hidden field.
+function markedText() {
+  if (!mark) {
+    return "";
+  }
+  const top = Math.min(mark.r1, mark.r2);
+  const bottom = Math.max(mark.r1, mark.r2);
+  const left = Math.min(mark.c1, mark.c2);
+  const right = Math.max(mark.c1, mark.c2);
+  const lines = [];
+  for (let r = top; r <= bottom; r++) {
+    let line = "";
+    for (let c = left; c <= right; c++) {
+      const i = (r - 1) * state.cols + (c - 1);
+      const { hidden } = cellColor(i);
+      line += hidden ? " " : state.text[i] || " ";
+    }
+    lines.push(line.replace(/\s+$/, ""));
+  }
+  return lines.join("\n");
+}
+
+function copyMark() {
+  const text = markedText();
+  if (text) {
+    vscode.postMessage({ op: "copy", text });
+  }
+  clearMark();
+  screenEl.focus();
+}
 
 const measure = document.createElement("canvas").getContext("2d");
 
@@ -233,6 +305,7 @@ function fit() {
     row.style.height = `${cellH}px`;
   }
   positionCursor();
+  drawMark();
 }
 
 function setOia() {
@@ -292,6 +365,10 @@ window.addEventListener("message", (event) => {
     blinkEnabled = msg.blink === true;
     if (msg.keymap) {
       keymap = msg.keymap;
+    }
+    if (msg.selection) {
+      selectionMode = msg.selection === "stream" ? "stream" : "block";
+      applySelectionMode();
     }
     applyColors();
     FONT_STACK = fontStack(msg.fontFamily);
@@ -410,15 +487,33 @@ screenEl.addEventListener("keydown", (e) => {
   }
   soloModifier = "";
 
-  // Clipboard and select-all belong to the editor. Ctrl+C only means ATTN
-  // when there is nothing to copy.
-  if ((e.ctrlKey || e.metaKey) && ["c", "a", "v", "x"].includes(e.key.toLowerCase())) {
-    if (e.key.toLowerCase() === "c" && !hasSelection()) {
+  // Clipboard and select-all. Ctrl+C only means ATTN when there is nothing to
+  // copy, so a real 3270 attention key is still reachable.
+  const clip = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && ["c", "a", "v", "x"].includes(clip)) {
+    if (clip === "c") {
+      if (selectionMode === "block") {
+        e.preventDefault();
+        if (mark) {
+          copyMark();
+        } else {
+          runAction("aid:attn");
+        }
+      } else if (!hasSelection()) {
+        e.preventDefault();
+        runAction("aid:attn");
+      }
+    } else if (clip === "a" && selectionMode === "block") {
+      // Mark the whole screen; stream mode keeps the browser's select-all.
       e.preventDefault();
-      runAction("aid:attn");
+      mark = { r1: 1, c1: 1, r2: state.rows, c2: state.cols };
+      drawMark();
     }
     return;
   }
+
+  // Any other key is host input, so the mark has served its purpose.
+  clearMark();
 
   const action = keymap[chordFor(e)];
   if (action) {
@@ -468,8 +563,12 @@ function cellFromEvent(e) {
   return { row, col };
 }
 
-// Dragging selects text; a plain click still positions the 3270 cursor.
+// Stream mode: dragging selects text; a plain click still positions the 3270
+// cursor. Only bound when block mode is off, so the two never both fire.
 gridEl.addEventListener("mouseup", (e) => {
+  if (selectionMode !== "stream") {
+    return;
+  }
   screenEl.focus();
   if (e.detail === 2) {
     const { row, col } = cellFromEvent(e);
@@ -487,6 +586,64 @@ gridEl.addEventListener("mouseup", (e) => {
     double: false,
     ctrl: Boolean(e.ctrlKey || e.metaKey),
   });
+});
+
+// Block mode: press to anchor, drag to mark a rectangle, Shift+press to extend.
+// preventDefault stops the browser starting a native text selection underneath.
+gridEl.addEventListener("mousedown", (e) => {
+  if (selectionMode !== "block" || e.button !== 0) {
+    return;
+  }
+  const { row, col } = cellFromEvent(e);
+  if (e.shiftKey && dragAnchor) {
+    mark = { r1: dragAnchor.row, c1: dragAnchor.col, r2: row, c2: col };
+    dragging = true;
+    drawMark();
+    e.preventDefault();
+    return;
+  }
+  dragAnchor = { row, col };
+  dragging = true;
+  mark = null;
+  drawMark();
+  e.preventDefault();
+});
+
+// On window, so a drag that leaves the grid keeps tracking (clamped by
+// cellFromEvent) instead of freezing at the edge.
+window.addEventListener("mousemove", (e) => {
+  if (!dragging || selectionMode !== "block") {
+    return;
+  }
+  const { row, col } = cellFromEvent(e);
+  mark = { r1: dragAnchor.row, c1: dragAnchor.col, r2: row, c2: col };
+  drawMark();
+});
+
+window.addEventListener("mouseup", (e) => {
+  if (!dragging || selectionMode !== "block") {
+    return;
+  }
+  dragging = false;
+  const { row, col } = cellFromEvent(e);
+  screenEl.focus();
+  if (e.detail === 2) {
+    clearMark();
+    vscode.postMessage({ op: "click", row, col, double: true });
+    return;
+  }
+  // A press and release on the same cell is a click, not a drag: drop any mark
+  // and position the cursor, keeping Ctrl+click for the click macro.
+  if (row === dragAnchor.row && col === dragAnchor.col) {
+    clearMark();
+    vscode.postMessage({
+      op: "click",
+      row,
+      col,
+      double: false,
+      ctrl: Boolean(e.ctrlKey || e.metaKey),
+    });
+  }
 });
 
 // A 3270 drops the marked block once it has been copied. Clearing after the
@@ -521,6 +678,7 @@ window.addEventListener("focus", () => {
   screenEl.focus();
 });
 
+applySelectionMode();
 applyColors();
 buildGrid();
 fit();

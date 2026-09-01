@@ -80,6 +80,8 @@ export class SessionPanel {
             void this.runMacro(name);
           }
         }
+      } else if (msg.op === "copy") {
+        void vscode.env.clipboard.writeText(String(msg.text ?? ""));
       } else if (msg.op === "macro") {
         void this.runMacro(String(msg.name ?? ""));
       } else if (msg.op === "insert") {
@@ -117,6 +119,7 @@ export class SessionPanel {
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
       fontFamily: this.fontFamily(),
+      selection: getSelectionMode(),
     });
   }
 
@@ -329,6 +332,7 @@ export class SessionPanel {
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
       fontFamily: this.fontFamily(),
+      selection: getSelectionMode(),
     }).replace(/</g, "\\u003c");
     return `<!DOCTYPE html>
 <html lang="en">
@@ -365,6 +369,15 @@ export function getDefaultFontFamily(): string {
     .getConfiguration("tnzView")
     .get<string>("fontFamily", "")
     .trim();
+}
+
+/** Rectangular ("block") or linear ("stream") selection in the 3270 view. */
+export function getSelectionMode(): "block" | "stream" {
+  return vscode.workspace
+    .getConfiguration("tnzView")
+    .get<string>("selection", "block") === "stream"
+    ? "stream"
+    : "block";
 }
 
 function firstLine(message: string): string {

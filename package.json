@@ -2,9 +2,10 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.6.2",
+  "version": "0.7.1",
   "publisher": "mdavage",
   "license": "Apache-2.0",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/spufidoo/tnz-view.git"
@@ -95,6 +96,19 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Log every step a script macro takes to the **3270** output channel: what is typed, which AID key is sent, where the cursor was, and what `on_screen` found. Passwords from `ask_password` are replaced with asterisks. The channel opens automatically when a traced macro starts."
+        },
+        "tnzView.selection": {
+          "type": "string",
+          "enum": [
+            "block",
+            "stream"
+          ],
+          "default": "block",
+          "enumDescriptions": [
+            "Rectangular marking, like Vista and PCOMM: drag a row/column block, Ctrl+C copies the rectangle.",
+            "Linear text selection, like a text editor: from one character to another, wrapping across lines."
+          ],
+          "markdownDescription": "How selecting and copying works in a 3270 session. **block** marks a rectangle of rows and columns, the way Vista TN3270 and PCOMM do. **stream** selects a run of characters like a text editor, which also allows drag-to-another-app and the webview's own context-menu copy. Either way, Ctrl+C copies and Ctrl+V pastes."
         },
         "tnzView.transfer.syntax": {
           "type": "string",
