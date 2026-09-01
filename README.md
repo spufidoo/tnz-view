@@ -1,4 +1,4 @@
-# TNZ 3270
+# 3270 Terminal
 
 Native 3270 terminal view for VS Code and Cursor. Hosts live in the left activity bar; sessions open as editor tabs with a fixed 3270 grid (not a VT terminal).
 
@@ -10,24 +10,24 @@ The TN3270 protocol is handled by [IBM tnz](https://github.com/IBM/tnz) in a Pyt
 - `pip install tnz ebcdic`
 - VS Code or Cursor 1.85+
 
-Optional: point `tnzView.tnzPath` at a local IBM/tnz checkout while developing.
+Optional: point `tn3270.libraryPath` at a local IBM/tnz checkout while developing.
 
 ## Setup
 
 ```console
-cd tnz-view
+cd vscode-3270
 npm install
 npm run compile
 ```
 
 Press **F5** (Run Extension) from this folder, or install the folder as an unpacked extension.
 
-Open the **TNZ 3270** icon in the activity bar → **Add Host** → Connect.
+Open the **3270 Terminal** icon in the activity bar → **Add Host** → Connect.
 
 ## Host profiles
 
 **Add Host**, or **Edit Host** from a host's context menu, opens a settings tab with
-every field on one page. Ctrl+S saves. Profiles are stored in `tnzView.hosts` (user
+every field on one page. Ctrl+S saves. Profiles are stored in `tn3270.hosts` (user
 settings), so they can also be edited as JSON.
 
 | Field | Meaning |
@@ -91,8 +91,8 @@ All sessions share one Python sidecar process. If it stops, the open tabs say
 | Ctrl+A | Mark the whole screen (block mode) |
 | Ctrl+V | Paste into fields |
 
-Every binding can be changed with the `tnzView.keymap` setting, and open sessions
-pick up edits immediately. **TNZ 3270: Show Keyboard Map** lists what is in
+Every binding can be changed with the `tn3270.keymap` setting, and open sessions
+pick up edits immediately. **3270 Terminal: Show Keyboard Map** lists what is in
 effect.
 
 See [docs/KEYMAP.md](docs/KEYMAP.md) for the chord syntax, every action name,
@@ -102,7 +102,7 @@ The webview scales the font so the whole 3270 screen fits. Resizing the editor d
 
 ## Selection and copy
 
-`tnzView.selection` chooses how selecting works:
+`tn3270.selection` chooses how selecting works:
 
 - **block** (default) marks a rectangle of rows and columns, like Vista TN3270
   and PCOMM. Drag to mark, Shift+click to extend, Ctrl+A to mark the screen, and
@@ -116,19 +116,19 @@ in both modes, so they can never be copied.
 
 ## Macros
 
-**TNZ 3270: Run Macro**, or a keymap chord `macro:<name>`, plays a named
-entry from `tnzView.macros`. A **tape** is text with `[action]` markers, for
+**3270 Terminal: Run Macro**, or a keymap chord `macro:<name>`, plays a named
+entry from `tn3270.macros`. A **tape** is text with `[action]` markers, for
 example `=3.4[enter][wait]MY.JCL[enter]`. A **script** is
 `{ "script": "startlpar" }`, a Python file in the macros folder that can read
 the screen and ask as it runs. **Open Macros Folder** creates that folder.
-Ctrl+click runs `tnzView.clickMacro` if set.
+Ctrl+click runs `tn3270.clickMacro` if set.
 
 See [docs/MACROS.md](docs/MACROS.md) for tape markers, the script API, and
 examples.
 
 ## File transfer
 
-**TNZ 3270: Download File from Host** and **Upload File to Host**, or the
+**3270 Terminal: Download File from Host** and **Upload File to Host**, or the
 buttons on the session tab, transfer files with IND$FILE. The session must be
 at a ready prompt (TSO READY, ISPF option 6, CMS) because the command is typed
 at the cursor.
@@ -161,10 +161,10 @@ The **Appearance** section of the host settings tab controls this:
 
 ## Font
 
-`tnzView.fontFamily` sets the font for every session:
+`tn3270.fontFamily` sets the font for every session:
 
 ```json
-"tnzView.fontFamily": "Cascadia Mono"
+"tn3270.fontFamily": "Cascadia Mono"
 ```
 
 The **Font** box in the **Appearance** section of the host settings tab overrides
@@ -190,8 +190,24 @@ window to get bigger text.
 
 ## Settings
 
-Every `tnzView.*` setting is listed in [docs/SETTINGS.md](docs/SETTINGS.md),
+Every `tn3270.*` setting is listed in [docs/SETTINGS.md](docs/SETTINGS.md),
 with what it does, its default, and where it applies.
+
+Settings used to be `tnzView.*`. The first run after upgrading copies them, and
+your macros folder, to the new names, then offers to tidy the old keys away.
+
+## Builds
+
+The source carries no product name. A build takes one from `branding/`, which is
+overlaid on the manifest only while the `.vsix` is being made:
+
+```console
+npm run package        # 3270 Terminal      -> vscode-3270-<version>.vsix
+npm run package:bmc    # BMC AMI DevX 3270  -> vscode-3270-bmc-<version>.vsix
+```
+
+Both produce the same extension id, so they are the same extension wearing a
+different label. Add a flavour by dropping another JSON file in `branding/`.
 
 ## Layout
 
@@ -201,6 +217,8 @@ media/         3270 webview and host settings CSS/JS
 sidecar/       Python JSON-lines process wrapping tnz.Tnz
 docs/          Settings, keyboard map, macros, and file transfer references
 examples/      Sample session scripts (copied into the macros folder on first open)
+branding/      Display names applied at package time
+scripts/       Build helpers
 HISTORY.md     How the extension was built (this chat)
 ```
 

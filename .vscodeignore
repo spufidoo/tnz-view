@@ -8,4 +8,6 @@ tsconfig.json
 **/*.map
 sidecar/__pycache__/**
 media/icon-source.svg
+branding/**
+scripts/**
 node_modules/**

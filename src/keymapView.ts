@@ -15,8 +15,8 @@ export function showKeymap(extensionUri: vscode.Uri): void {
   }
 
   panel = vscode.window.createWebviewPanel(
-    "tnzView.keymap",
-    "TNZ 3270 Keyboard Map",
+    "tn3270.keymap",
+    "3270 Terminal Keyboard Map",
     vscode.ViewColumn.Active,
     { localResourceRoots: [vscode.Uri.joinPath(extensionUri, "media")] }
   );
@@ -58,7 +58,7 @@ function html(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 <body>
   <h1>3270 keyboard map</h1>
   <p class="hint">Bindings in effect while a 3270 tab is focused. Override them
-  with the <code>tnzView.keymap</code> setting. Ctrl+C copies when text is
+  with the <code>tn3270.keymap</code> setting. Ctrl+C copies when text is
   selected and sends ATTN when it is not; Ctrl+V pastes into fields.</p>
   <table>
     <thead><tr><th>Action</th><th>Keys</th><th>Name</th></tr></thead>

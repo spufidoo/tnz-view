@@ -1,16 +1,16 @@
 # Keyboard map
 
-Bindings apply while a 3270 tab has focus. Run **TNZ 3270: Show Keyboard Map**
+Bindings apply while a 3270 tab has focus. Run **3270 Terminal: Show Keyboard Map**
 from the command palette to see the ones actually in effect, including your own
 overrides.
 
 ## Changing bindings
 
-Add `tnzView.keymap` to your user `settings.json`. Each entry maps a chord to an
+Add `tn3270.keymap` to your user `settings.json`. Each entry maps a chord to an
 action:
 
 ```json
-"tnzView.keymap": {
+"tn3270.keymap": {
   "escape": "aid:pa2",
   "ctrl+shift+e": "nav:eraseinput",
   "shift+escape": "local:reset",
@@ -122,7 +122,7 @@ keyboard and only the host can give it back.
 
 ### `macro:` — play a named macro
 
-`macro:<name>` runs an entry from `tnzView.macros`. See
+`macro:<name>` runs an entry from `tn3270.macros`. See
 [MACROS.md](MACROS.md).
 
 ## Defaults
@@ -152,8 +152,8 @@ with tnz, wherever the two overlap.
 
 ## Macros
 
-Named sequences live in `tnzView.macros` and are played with `macro:<name>` or
-**TNZ 3270: Run Macro**. The full marker list, execution order, and examples
+Named sequences live in `tn3270.macros` and are played with `macro:<name>` or
+**3270 Terminal: Run Macro**. The full marker list, execution order, and examples
 are in [MACROS.md](MACROS.md).
 
 ## Reserved keys
@@ -174,7 +174,7 @@ current field.
 | Action | Result |
 | --- | --- |
 | Click | Move the cursor |
-| Ctrl+click (Cmd+click on macOS) | Move the cursor and run `tnzView.clickMacro`, if set |
+| Ctrl+click (Cmd+click on macOS) | Move the cursor and run `tn3270.clickMacro`, if set |
 | Double-click | Move the cursor and send ENTER |
 | Drag | Select text |
 
@@ -194,7 +194,7 @@ press: the webview handles it, and VS Code separately resolves its own
 keybindings from it, so F5 used to send PF5 and start the debugger. Every
 default chord that VS Code also binds — F1 to F12 with and without Shift,
 `alt+1` to `alt+3`, `alt+a`, `alt+c`, `alt+left`, `alt+right`, `alt+delete`
-and `ctrl+r` — is claimed for `tnzView.session.keyGuard`, a command that does
+and `ctrl+r` — is claimed for `tn3270.session.keyGuard`, a command that does
 nothing, whenever a 3270 tab has focus. That leaves the webview as the only
 handler. One consequence: F1 no longer opens the command palette in a session
 tab, because it is PF1. Ctrl+Shift+P still does.
@@ -205,12 +205,12 @@ Shortcuts (`keybindings.json`):
 ```json
 {
   "key": "ctrl+shift+e",
-  "command": "tnzView.session.keyGuard",
-  "when": "activeWebviewPanelId == tnzView.session"
+  "command": "tn3270.session.keyGuard",
+  "when": "activeWebviewPanelId == tn3270.session"
 }
 ```
 
-`tnzView.sessionActive` is also available as a `when` clause. It is true while a
+`tn3270.sessionActive` is also available as a `when` clause. It is true while a
 session tab is open rather than only while it has focus, so prefer
 `activeWebviewPanelId` for guards.
 

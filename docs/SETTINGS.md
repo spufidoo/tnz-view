@@ -1,15 +1,27 @@
 # Settings
 
 Every setting the extension contributes, what it does, and its default. All live
-under the `tnzView.` prefix in your user or workspace `settings.json`. Most take
+under the `tn3270.` prefix in your user or workspace `settings.json`. Most take
 effect immediately in open sessions; the exceptions are noted.
 
-Open **File → Preferences → Settings** and search for `tnz`, or edit
+Open **File → Preferences → Settings** and search for `tn3270`, or edit
 `settings.json` directly.
+
+## Moving from `tnzView.*`
+
+These settings were called `tnzView.*` before the extension was renamed, and the
+extension id changed with the name. The first activation after upgrading copies
+every old value it recognises to the new key, and copies your script macros from
+the old extension's storage folder into the new one. Nothing already set under
+`tn3270.*` is overwritten. You are then asked once whether to delete the old
+keys; declining leaves them in place, where the editor will flag them as unknown
+settings but nothing will read them. `tnzView.tnzPath` is the only key that was
+also renamed, to `tn3270.libraryPath`. No passwords are involved, because none
+were ever stored.
 
 ## Connection and hosts
 
-### `tnzView.hosts`
+### `tn3270.hosts`
 
 Array of saved host profiles, shown in the **Hosts** tree. Normally you edit these
 through **Add Host** / **Edit Host** rather than by hand, but they are plain JSON.
@@ -19,7 +31,7 @@ Each profile is an object; the fields are listed under
 - Type: `array`
 - Default: `[]`
 
-### `tnzView.pythonPath`
+### `tn3270.pythonPath`
 
 Python 3.10+ interpreter that has the `tnz` package installed. Empty uses the `py`
 launcher or `python` on the `PATH`.
@@ -28,7 +40,7 @@ launcher or `python` on the `PATH`.
 - Default: `""`
 - Applies: next connect (the sidecar is spawned per session)
 
-### `tnzView.tnzPath`
+### `tn3270.libraryPath`
 
 Optional path to a local [IBM/tnz](https://github.com/IBM/tnz) checkout, added to
 `PYTHONPATH`. For developing against an unreleased tnz; leave empty to use the
@@ -40,7 +52,7 @@ installed package.
 
 ## Appearance
 
-### `tnzView.fontFamily`
+### `tn3270.fontFamily`
 
 Default font for the 3270 screen, as a CSS font list, e.g. `Cascadia Mono` or
 `"IBM 3270", Consolas`. Must be monospaced: columns sit on a fixed pitch, so a
@@ -52,7 +64,7 @@ built-in stack of Lucida Console, Cascadia Mono, Consolas and Courier New.
 - Default: `""`
 - Applies: live, to every session that has not set its own font
 
-### `tnzView.selection`
+### `tn3270.selection`
 
 How selecting and copying works in a session.
 
@@ -70,7 +82,7 @@ read as blanks so they can never be copied.
 
 ## Keyboard and macros
 
-### `tnzView.keymap`
+### `tn3270.keymap`
 
 Overrides for 3270 key bindings. Each entry maps a chord such as `alt+1` to an
 action:
@@ -80,24 +92,24 @@ action:
   `wordleft`, `wordright`, `backspace`, `delete`, `eraseeof`, `eraseinput`,
   `newline`
 - `local:<name>` — `insert`, `reset`
-- `macro:<name>` — a `tnzView.macros` entry
+- `macro:<name>` — a `tn3270.macros` entry
 
-An empty value removes a default binding. Run **TNZ 3270: Show Keyboard Map** to
+An empty value removes a default binding. Run **3270 Terminal: Show Keyboard Map** to
 see the merged result. Full syntax is in [KEYMAP.md](KEYMAP.md).
 
 - Type: `object` (chord → action string)
 - Default: `{}`
 - Applies: live
 
-### `tnzView.macros`
+### `tn3270.macros`
 
-Named macros, played from a `macro:<name>` keymap chord or **TNZ 3270: Run Macro**.
+Named macros, played from a `macro:<name>` keymap chord or **3270 Terminal: Run Macro**.
 A value is one of:
 
 - a **tape** string with `[action]` markers, e.g. `TSO[enter][wait]LISTC[enter]`
 - an array of tape strings
 - a **script**, `{ "script": "startlpar" }`, naming a Python file in the macros
-  folder (**TNZ 3270: Open Macros Folder**)
+  folder (**3270 Terminal: Open Macros Folder**)
 
 Never put a password in this setting. Details and the script API are in
 [MACROS.md](MACROS.md).
@@ -106,9 +118,9 @@ Never put a password in this setting. Details and the script API are in
 - Default: `{}`
 - Applies: live
 
-### `tnzView.clickMacro`
+### `tn3270.clickMacro`
 
-Name of a `tnzView.macros` entry to run on Ctrl+click (Cmd+click on macOS) in a
+Name of a `tn3270.macros` entry to run on Ctrl+click (Cmd+click on macOS) in a
 session. The click position is passed to the script as `click`. Empty means a
 Ctrl+click only moves the cursor. Typical value: `startlpar`.
 
@@ -116,7 +128,7 @@ Ctrl+click only moves the cursor. Typical value: `startlpar`.
 - Default: `""`
 - Applies: live
 
-### `tnzView.macroTrace`
+### `tn3270.macroTrace`
 
 Log every step a script macro takes to the **3270** output channel: what is typed,
 which AID key is sent, where the cursor was, and what `on_screen`/`wait_for` found.
@@ -129,7 +141,7 @@ a traced macro starts.
 
 ## File transfer
 
-### `tnzView.transfer.syntax`
+### `tn3270.transfer.syntax`
 
 How IND$FILE options are introduced.
 
@@ -140,7 +152,7 @@ How IND$FILE options are introduced.
 - Type: `string` (`tso` | `cms`)
 - Default: `tso`
 
-### `tnzView.transfer.idleTimeout`
+### `tn3270.transfer.idleTimeout`
 
 Seconds to wait for IND$FILE to respond before giving up. The clock resets whenever
 the transfer makes progress, so this only fires when the host has gone quiet —
@@ -149,7 +161,7 @@ usually because the command was typed somewhere that is not a ready prompt.
 - Type: `number` (minimum `5`)
 - Default: `60`
 
-### `tnzView.transfer.options`
+### `tn3270.transfer.options`
 
 IND$FILE options offered as the default when starting a transfer, e.g.
 `RECFM(V) LRECL(255)`. `ASCII` and `CRLF` are added automatically for text
@@ -163,7 +175,7 @@ messages mean.
 
 ## Host profile fields
 
-These live inside each object in `tnzView.hosts`. The host settings tab writes them
+These live inside each object in `tn3270.hosts`. The host settings tab writes them
 for you; this is what it writes.
 
 | Field | Type | Meaning |
@@ -183,7 +195,7 @@ for you; this is what it writes.
 | `extendedColor` | boolean | Advertise colour capability to the host |
 | `blink` | boolean | Render the blink highlight instead of ignoring it |
 | `colors` | object | Per-host palette (`background`, `black`, `blue`, `red`, `pink`, `green`, `turquoise`, `yellow`, `white`) |
-| `fontFamily` | string | Per-host font; empty follows `tnzView.fontFamily` |
+| `fontFamily` | string | Per-host font; empty follows `tn3270.fontFamily` |
 
 Passwords are never stored in a profile. Log on in the 3270 screen, or use a script
 macro that prompts with `ask_password`.
@@ -202,7 +214,7 @@ the original used `[password:Password]` (or `ask_password` in a script) instead.
 
 ```json
 {
-    "tnzView.hosts": [
+    "tn3270.hosts": [
         {
             "id": "f7ea3eb2-77e1-4277-bc7b-848c78a75eb6",
             "label": "DB2B",
@@ -284,17 +296,17 @@ the original used `[password:Password]` (or `ask_password` in a script) instead.
             "fontFamily": ""
         }
     ],
-    "tnzView.fontFamily": "Consolas",
-    "tnzView.selection": "block",
-    "tnzView.macros": {
+    "tn3270.fontFamily": "Consolas",
+    "tn3270.selection": "block",
+    "tn3270.macros": {
         "password": "[password:Password]",
         "probe": "[prompt:Type something]",
         "startlpar": { "script": "startlpar" },
         "logon": "[prompt:Userid][enter][wait][password:Password][enter][wait][enter]"
     },
-    "tnzView.macroTrace": false,
-    "tnzView.clickMacro": "startlpar",
-    "tnzView.keymap": {
+    "tn3270.macroTrace": false,
+    "tn3270.clickMacro": "startlpar",
+    "tn3270.keymap": {
         "ctrl+alt+p": "macro:password",
         "pageup": "aid:pf7",
         "pagedown": "aid:pf8",

@@ -1,4 +1,4 @@
-"""JSON-lines sidecar wrapping tnz.Tnz for the TNZ 3270 VS Code extension.
+"""JSON-lines sidecar wrapping tnz.Tnz for the 3270 Terminal VS Code extension.
 
 One process, one worker thread per session. Commands arrive on stdin;
 events are written to stdout as a single JSON object per line.
@@ -30,7 +30,7 @@ for _stream in (sys.stdin, sys.stdout, sys.stderr):
         pass
 
 # Optional local IBM/tnz checkout (set by the extension).
-_tnz_path = os.environ.get("TNZ_VIEW_TNZ_PATH", "").strip()
+_tnz_path = os.environ.get("VSCODE_3270_TNZ_PATH", "").strip()
 if _tnz_path:
     sys.path.insert(0, _tnz_path)
 
@@ -45,7 +45,7 @@ def _configure_tnz_logging() -> None:
     if "TNZ_LOGGING" in os.environ:
         return
 
-    log_dir = os.environ.get("TNZ_VIEW_LOG_DIR", "").strip()
+    log_dir = os.environ.get("VSCODE_3270_LOG_DIR", "").strip()
     if not log_dir:
         os.environ["TNZ_LOGGING"] = ""  # disable tnz file logging
         return
@@ -68,7 +68,7 @@ def _configure_tnz_logging() -> None:
             "loggers": {
                 "tnz": {
                     "handlers": ["tnz_log"],
-                    "level": os.environ.get("TNZ_VIEW_LOG_LEVEL", "WARN"),
+                    "level": os.environ.get("VSCODE_3270_LOG_LEVEL", "WARN"),
                     "propagate": False,
                 }
             },
@@ -441,7 +441,7 @@ def _compile_script(source: str, path: str):
     """
     body = ast.parse(source, path).body
     module = ast.parse(
-        "def __tnz_script():\n    pass\n__tnz_script()\n", "<macro>"
+        "def __macro_script():\n    pass\n__macro_script()\n", "<macro>"
     )
     function = module.body[0]
     if body:
@@ -746,7 +746,7 @@ class Session:
         self.secure = False
         self.last_click: tuple[int, int] | None = None
         self.thread = threading.Thread(
-            target=self._run, name=f"tnz-{session_id}", daemon=True
+            target=self._run, name=f"3270-{session_id}", daemon=True
         )
 
     def start(self) -> None:

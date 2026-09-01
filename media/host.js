@@ -70,7 +70,7 @@ const PREVIEW_ROWS = [
 
 let hostId = null;
 let statusTimer = null;
-// tnzView.fontFamily, used by any profile that leaves the Font box empty.
+// tn3270.fontFamily, used by any profile that leaves the Font box empty.
 let defaultFontFamily = "";
 
 const el = (id) => document.getElementById(id);

@@ -11,7 +11,7 @@ type SaveHandler = (host: HostProfile) => Promise<void>;
 
 /** Form tab for a host profile, replacing the old chain of input boxes. */
 export class HostEditorPanel {
-  static readonly viewType = "tnzView.hostEditor";
+  static readonly viewType = "tn3270.hostEditor";
   private static readonly open = new Map<string, HostEditorPanel>();
 
   private readonly panel: vscode.WebviewPanel;
@@ -241,7 +241,7 @@ export class HostEditorPanel {
       <span class="label-spacer"></span>
       <p class="hint">Must be monospaced: columns sit on a fixed pitch, so a
       proportional font will not line up. The size is not set here, it grows to
-      fill the panel. Leave empty to follow <code>tnzView.fontFamily</code>.</p>
+      fill the panel. Leave empty to follow <code>tn3270.fontFamily</code>.</p>
 
       <span class="label-spacer"></span>
       <p class="hint" id="font-warning"></p>

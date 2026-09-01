@@ -1,6 +1,6 @@
 # File transfer (IND$FILE)
 
-**TNZ 3270: Download File from Host** and **TNZ 3270: Upload File to Host**
+**3270 Terminal: Download File from Host** and **3270 Terminal: Upload File to Host**
 copy files over the 3270 session using IND$FILE. Both are also buttons on the
 session tab's title bar.
 
@@ -38,7 +38,7 @@ renamed it — some do. Ask whoever looks after TSO at your site.
 ## Download a TSO dataset
 
 1. Get the session to READY or ISPF option 6, as above.
-2. Run **TNZ 3270: Download File from Host** from the command palette, or press
+2. Run **3270 Terminal: Download File from Host** from the command palette, or press
    the download button on the session tab.
 3. **Host file.** Type the dataset name.
    - In quotes for a fully qualified name: `'SYS1.PROCLIB(IEFBR14)'`
@@ -65,7 +65,7 @@ dataset**. If you are uploading to a member, the PDS has to exist already.
    JCL and most source. For a sequential dataset you can let IND$FILE create it
    by passing the space and record options in step 6.
 2. Get the session to READY or ISPF option 6.
-3. Run **TNZ 3270: Upload File to Host**, or press the upload button.
+3. Run **3270 Terminal: Upload File to Host**, or press the upload button.
 4. **Pick the local file.** The dialog opens on the active editor's file.
 5. **Host file.** The dataset name, same rules as for download. An existing
    member is overwritten without asking.
@@ -121,7 +121,7 @@ The name is passed to IND$FILE untouched, so use whatever the host expects:
 
 Whatever you type at the options prompt is passed to IND$FILE.
 
-The two hosts introduce options differently, so `tnzView.transfer.syntax`
+The two hosts introduce options differently, so `tn3270.transfer.syntax`
 selects between them. It defaults to `tso`.
 
 | Setting | Command sent |
@@ -142,7 +142,7 @@ rejects one with `IKJ56712I INVALID KEYWORD, (`.
 
 `ASCII` and `CRLF` are added for you in text mode; do not repeat them.
 
-Set `tnzView.transfer.options` to pre-fill the prompt with the options you use
+Set `tn3270.transfer.options` to pre-fill the prompt with the options you use
 most.
 
 ## While a transfer runs
@@ -152,7 +152,7 @@ session for the duration. The status line shows `FILE TRANSFER IN PROGRESS`.
 
 IND$FILE has no way to abort a transfer in progress, so the progress
 notification has no Cancel button. If the host goes quiet for
-`tnzView.transfer.idleTimeout` seconds (60 by default) the transfer gives up
+`tn3270.transfer.idleTimeout` seconds (60 by default) the transfer gives up
 and the session returns to normal. The clock resets whenever data moves, so a
 slow but healthy transfer will not trip it.
 
@@ -172,7 +172,7 @@ success; anything else is an error and the message says what went wrong.
 | "the keyboard is locked" | Not at a ready prompt, or the host still owes a reply |
 | "no response from IND$FILE" | The command went into a field instead of running. You were not at a command prompt |
 | `COMMAND IND$FILE NOT FOUND` on screen | Not installed, or renamed at your site |
-| `IKJ56712I INVALID KEYWORD, (` | `tnzView.transfer.syntax` is `cms` against a TSO host |
+| `IKJ56712I INVALID KEYWORD, (` | `tn3270.transfer.syntax` is `cms` against a TSO host |
 | `IKJ56712I INVALID KEYWORD` naming an option | The host does not accept that option; check it against the ones above |
 | `TRANS13` and similar | The host rejected the request; the number and text say why |
 | Upload to a member fails | The PDS does not exist. IND$FILE cannot create one |

@@ -42,7 +42,7 @@ const DEFAULT_WAIT_MS = 10000;
 export function getMacros(): Record<string, MacroSource> {
   return (
     vscode.workspace
-      .getConfiguration("tnzView")
+      .getConfiguration("tn3270")
       .get<Record<string, MacroSource>>("macros", {}) || {}
   );
 }
@@ -212,7 +212,7 @@ export function resolveNamedMacro(
   const source = getMacros()[name];
   if (source === undefined) {
     void vscode.window.showWarningMessage(
-      `TNZ 3270: no macro named "${name}" in tnzView.macros.`
+      `3270 Terminal: no macro named "${name}" in tn3270.macros.`
     );
     return undefined;
   }
@@ -223,7 +223,7 @@ export function resolveNamedMacro(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       void vscode.window.showErrorMessage(
-        `TNZ 3270: macro "${name}": ${message}`
+        `3270 Terminal: macro "${name}": ${message}`
       );
       return undefined;
     }
@@ -237,7 +237,7 @@ export function resolveNamedMacro(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     void vscode.window.showErrorMessage(
-      `TNZ 3270: macro "${name}": ${message}`
+      `3270 Terminal: macro "${name}": ${message}`
     );
     return undefined;
   }

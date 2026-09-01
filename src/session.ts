@@ -20,7 +20,7 @@ import {
 import { getNonce } from "./webview";
 
 export class SessionPanel {
-  static readonly viewType = "tnzView.session";
+  static readonly viewType = "tn3270.session";
 
   readonly sessionId: string;
   private readonly panel: vscode.WebviewPanel;
@@ -83,7 +83,7 @@ export class SessionPanel {
         this.send({ ...msg, sessionId: this.sessionId });
         if (msg.ctrl) {
           const name = vscode.workspace
-            .getConfiguration("tnzView")
+            .getConfiguration("tn3270")
             .get<string>("clickMacro", "")
             .trim();
           if (name) {
@@ -155,7 +155,7 @@ export class SessionPanel {
       if (!this.reportedDead && this.attemptedConnect) {
         this.reportedDead = true;
         void vscode.window.showWarningMessage(
-          `TNZ 3270: the 3270 sidecar stopped. Connect ${this.host.label} again to restart it.`
+          `3270 Terminal: the 3270 sidecar stopped. Connect ${this.host.label} again to restart it.`
         );
       }
       return false;
@@ -211,7 +211,7 @@ export class SessionPanel {
         localPath: req.localPath,
         parms: buildParms(req, getSyntax()),
         idleTimeout: vscode.workspace
-          .getConfiguration("tnzView")
+          .getConfiguration("tn3270")
           .get<number>("transfer.idleTimeout", 60),
       });
       if (!sent) {
@@ -254,7 +254,7 @@ export class SessionPanel {
     if (ev.op === "error" && !ev.message.includes("Input Inhibit")) {
       log().error(`session ${this.host.label}: ${ev.message}`);
       void vscode.window
-        .showWarningMessage(`TNZ 3270: ${firstLine(ev.message)}`, "Show Log")
+        .showWarningMessage(`3270 Terminal: ${firstLine(ev.message)}`, "Show Log")
         .then((choice) => {
           if (choice === "Show Log") {
             log().show(true);
@@ -272,12 +272,12 @@ export class SessionPanel {
     if (resolved.kind === "script") {
       if (!fs.existsSync(resolved.path)) {
         void vscode.window.showErrorMessage(
-          `TNZ 3270: macro "${name}": no file at ${resolved.path}. Use Open Macros Folder to create it.`
+          `3270 Terminal: macro "${name}": no file at ${resolved.path}. Use Open Macros Folder to create it.`
         );
         return;
       }
       const trace = vscode.workspace
-        .getConfiguration("tnzView")
+        .getConfiguration("tn3270")
         .get<boolean>("macroTrace", false);
       if (trace) {
         log().show(true);
@@ -429,7 +429,7 @@ export class SessionPanel {
       <span id="oia-msg">Connecting…</span>
     </div>
   </div>
-  <script nonce="${nonce}">window.__TNZ_CONFIG__ = ${config};</script>
+  <script nonce="${nonce}">window.__VSCODE_3270_CONFIG__ = ${config};</script>
   <script nonce="${nonce}" src="${js}"></script>
 </body>
 </html>`;
@@ -439,7 +439,7 @@ export class SessionPanel {
 /** The workspace-wide font, used by any profile that does not set one. */
 export function getDefaultFontFamily(): string {
   return vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<string>("fontFamily", "")
     .trim();
 }
@@ -447,7 +447,7 @@ export function getDefaultFontFamily(): string {
 /** Rectangular ("block") or linear ("stream") selection in the 3270 view. */
 export function getSelectionMode(): "block" | "stream" {
   return vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<string>("selection", "block") === "stream"
     ? "stream"
     : "block";

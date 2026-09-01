@@ -1,10 +1,10 @@
 # startlpar — Ctrl+click an LPAR name (or run from Run Macro).
 #
 # settings.json:
-#   "tnzView.macros": { "startlpar": { "script": "startlpar" } }
-#   "tnzView.clickMacro": "startlpar"
+#   "tn3270.macros": { "startlpar": { "script": "startlpar" } }
+#   "tn3270.clickMacro": "startlpar"
 #
-# Copy this file to the macros folder (TNZ 3270: Open Macros Folder)
+# Copy this file to the macros folder (3270 Terminal: Open Macros Folder)
 # if it is not already there. Do not put a password in this file.
 #
 # Copyright (c) 2026 Marcus Davage

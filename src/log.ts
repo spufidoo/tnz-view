@@ -13,7 +13,7 @@ export function initLog(context: vscode.ExtensionContext): vscode.LogOutputChann
 
 export function log(): vscode.LogOutputChannel {
   if (!channel) {
-    channel = vscode.window.createOutputChannel("TNZ 3270", { log: true });
+    channel = vscode.window.createOutputChannel("3270 Terminal", { log: true });
     disposables?.push(channel);
   }
   return channel;
@@ -26,7 +26,7 @@ export function reportError(where: string, err: unknown): void {
     log().debug(err.stack);
   }
   void vscode.window.showErrorMessage(
-    `TNZ 3270: ${message}`,
+    `3270 Terminal: ${message}`,
     "Show Log"
   ).then((choice) => {
     if (choice === "Show Log") {

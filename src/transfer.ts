@@ -10,7 +10,7 @@ import { TransferRequest, TransferSyntax } from "./types";
 
 export function getSyntax(): TransferSyntax {
   return vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<TransferSyntax>("transfer.syntax", "tso");
 }
 
@@ -88,7 +88,7 @@ async function askText(): Promise<boolean | undefined> {
 
 async function askOptions(): Promise<string | undefined> {
   const extra = vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<string>("transfer.options", "");
   return vscode.window.showInputBox({
     title: "IND$FILE options",
@@ -200,7 +200,7 @@ async function run(
   const message = result.message || "transfer failed";
   log().error(`transfer failed: ${req.hostFile} — ${message}`);
   void vscode.window
-    .showErrorMessage(`TNZ 3270: ${message}`, "Show Log")
+    .showErrorMessage(`3270 Terminal: ${message}`, "Show Log")
     .then((choice) => {
       if (choice === "Show Log") {
         log().show(true);

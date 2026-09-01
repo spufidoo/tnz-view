@@ -4,8 +4,11 @@ This is a record of the Cursor chat that produced tnz-view (20–26 August 2026)
 not a transcript dump. Tool calls, screenshots and log attachments are omitted;
 the decisions and the bugs that drove them are not.
 
-The extension lives at [https://github.com/spufidoo/tnz-view](https://github.com/spufidoo/tnz-view).
 It uses [IBM tnz](https://github.com/IBM/tnz) at runtime and does not vendor it.
+
+The extension was called TNZ 3270 throughout the period this records, and its
+settings `tnzView.*`. Both were renamed in 0.9.0 when it moved to BMC: the names
+below are left as they were said at the time rather than rewritten.
 
 ## Why this exists
 

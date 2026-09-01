@@ -15,6 +15,7 @@ import { HostEditorPanel } from "./hostEditor";
 import { refreshKeymapView, showKeymap } from "./keymapView";
 import { initLog, log, reportError } from "./log";
 import { getMacros } from "./macros";
+import { migrateFromTnzView } from "./migrate";
 import { download, upload } from "./transfer";
 import { Sidecar } from "./sidecar";
 import { SessionPanel } from "./session";
@@ -24,6 +25,8 @@ import { HostProfile, SidecarEvent } from "./types";
 export function activate(context: vscode.ExtensionContext): void {
   initLog(context);
   const tree = new HostTreeProvider();
+  // Host profiles may arrive from the old prefix, so repaint the list after.
+  void migrateFromTnzView(context).then(() => tree.refresh());
   const sidecar = new Sidecar(
     context.extensionPath,
     context.logUri.fsPath,
@@ -47,26 +50,26 @@ export function activate(context: vscode.ExtensionContext): void {
     }
     void vscode.commands.executeCommand(
       "setContext",
-      "tnzView.sessionActive",
+      "tn3270.sessionActive",
       Boolean(active)
     );
   };
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider("tnzView.hosts", tree),
+    vscode.window.registerTreeDataProvider("tn3270.hosts", tree),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration("tnzView.hosts")) {
+      if (e.affectsConfiguration("tn3270.hosts")) {
         tree.refresh();
       }
-      if (e.affectsConfiguration("tnzView.keymap")) {
+      if (e.affectsConfiguration("tn3270.keymap")) {
         for (const panel of sessions.values()) {
           panel.sendConfig();
         }
         refreshKeymapView(context.extensionUri);
       }
       if (
-        e.affectsConfiguration("tnzView.fontFamily") ||
-        e.affectsConfiguration("tnzView.selection")
+        e.affectsConfiguration("tn3270.fontFamily") ||
+        e.affectsConfiguration("tn3270.selection")
       ) {
         for (const panel of sessions.values()) {
           panel.sendConfig();
@@ -104,8 +107,8 @@ export function activate(context: vscode.ExtensionContext): void {
     if (open.length) {
       void vscode.window.showWarningMessage(
         open.length === 1
-          ? "TNZ 3270: the 3270 sidecar stopped. Connect again to restart it."
-          : `TNZ 3270: the 3270 sidecar stopped, ending ${open.length} sessions. Connect again to restart it.`
+          ? "3270 Terminal: the 3270 sidecar stopped. Connect again to restart it."
+          : `3270 Terminal: the 3270 sidecar stopped, ending ${open.length} sessions. Connect again to restart it.`
       );
     }
   });
@@ -213,11 +216,11 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("tnzView.hosts.add", () => {
+    vscode.commands.registerCommand("tn3270.hosts.add", () => {
       openEditor(newHost(), true);
     }),
     vscode.commands.registerCommand(
-      "tnzView.hosts.edit",
+      "tn3270.hosts.edit",
       async (item?: HostItem) => {
         const current = hostFromArg(item) ?? (await pickHost());
         if (!current) {
@@ -227,7 +230,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     ),
     vscode.commands.registerCommand(
-      "tnzView.hosts.delete",
+      "tn3270.hosts.delete",
       async (item?: HostItem) => {
         const current = hostFromArg(item) ?? (await pickHost());
         if (!current) {
@@ -246,7 +249,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     ),
     vscode.commands.registerCommand(
-      "tnzView.hosts.duplicate",
+      "tn3270.hosts.duplicate",
       async (item?: HostItem) => {
         const current = hostFromArg(item) ?? (await pickHost());
         if (!current) {
@@ -263,7 +266,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     ),
     vscode.commands.registerCommand(
-      "tnzView.hosts.connect",
+      "tn3270.hosts.connect",
       async (item?: HostItem | HostProfile) => {
         const host = hostFromArg(item) ?? (await pickHost());
         if (!host) {
@@ -297,7 +300,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     ),
     vscode.commands.registerCommand(
-      "tnzView.hosts.disconnect",
+      "tn3270.hosts.disconnect",
       async (item?: HostItem) => {
         const host = hostFromArg(item) ?? (await pickHost());
         if (!host) {
@@ -311,11 +314,11 @@ export function activate(context: vscode.ExtensionContext): void {
         tree.setStatus(host.id, "disconnected");
       }
     ),
-    vscode.commands.registerCommand("tnzView.session.clear", () => {
+    vscode.commands.registerCommand("tn3270.session.clear", () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       panel?.sendAid("clear");
     }),
-    vscode.commands.registerCommand("tnzView.session.attn", () => {
+    vscode.commands.registerCommand("tn3270.session.attn", () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       panel?.sendAid("attn");
     }),
@@ -323,11 +326,11 @@ export function activate(context: vscode.ExtensionContext): void {
     // keybindings from the same press, so F5 reached both TSO and the
     // debugger. Claiming the chord for a command that does nothing leaves the
     // webview's copy of the key as the only thing that acts on it.
-    vscode.commands.registerCommand("tnzView.session.keyGuard", () => {}),
-    vscode.commands.registerCommand("tnzView.showKeymap", () => {
+    vscode.commands.registerCommand("tn3270.session.keyGuard", () => {}),
+    vscode.commands.registerCommand("tn3270.showKeymap", () => {
       showKeymap(context.extensionUri);
     }),
-    vscode.commands.registerCommand("tnzView.openMacrosFolder", async () => {
+    vscode.commands.registerCommand("tn3270.openMacrosFolder", async () => {
       fs.mkdirSync(macrosDir, { recursive: true });
       const example = path.join(macrosDir, "startlpar.py");
       const bundled = path.join(
@@ -343,22 +346,22 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.Uri.file(macrosDir)
       );
     }),
-    vscode.commands.registerCommand("tnzView.session.runMacro", async () => {
+    vscode.commands.registerCommand("tn3270.session.runMacro", async () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       if (!panel) {
-        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        void vscode.window.showWarningMessage("3270 Terminal: no active session.");
         return;
       }
       const names = Object.keys(getMacros());
       if (!names.length) {
         const choice = await vscode.window.showInformationMessage(
-          "TNZ 3270: no macros defined.",
+          "3270 Terminal: no macros defined.",
           "Edit Settings"
         );
         if (choice === "Edit Settings") {
           await vscode.commands.executeCommand(
             "workbench.action.openSettings",
-            "tnzView.macros"
+            "tn3270.macros"
           );
         }
         return;
@@ -371,18 +374,18 @@ export function activate(context: vscode.ExtensionContext): void {
         panel.focus();
       }
     }),
-    vscode.commands.registerCommand("tnzView.session.download", async () => {
+    vscode.commands.registerCommand("tn3270.session.download", async () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       if (!panel) {
-        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        void vscode.window.showWarningMessage("3270 Terminal: no active session.");
         return;
       }
       await download(panel);
     }),
-    vscode.commands.registerCommand("tnzView.session.upload", async () => {
+    vscode.commands.registerCommand("tn3270.session.upload", async () => {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       if (!panel) {
-        void vscode.window.showWarningMessage("TNZ 3270: no active session.");
+        void vscode.window.showWarningMessage("3270 Terminal: no active session.");
         return;
       }
       await upload(panel);

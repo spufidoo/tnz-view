@@ -40,7 +40,7 @@ export class Sidecar extends EventEmitter {
 
   send(cmd: SidecarCommand): void {
     if (!this.proc || !this.proc.stdin.writable) {
-      throw new Error("TNZ sidecar is not running");
+      throw new Error("3270 sidecar is not running");
     }
     this.proc.stdin.write(JSON.stringify(cmd) + "\n");
   }
@@ -57,7 +57,7 @@ export class Sidecar extends EventEmitter {
 
   private async start(): Promise<void> {
     const python = await resolvePython();
-    const script = path.join(this.extensionPath, "sidecar", "tnz_sidecar.py");
+    const script = path.join(this.extensionPath, "sidecar", "sidecar.py");
     if (!fs.existsSync(script)) {
       throw new Error(`Sidecar not found: ${script}`);
     }
@@ -67,13 +67,13 @@ export class Sidecar extends EventEmitter {
       PYTHONUNBUFFERED: "1",
       PYTHONIOENCODING: "utf-8",
     };
-    const tnzPath =
-      vscode.workspace.getConfiguration("tnzView").get<string>("tnzPath", "").trim() ||
+    const libraryPath =
+      vscode.workspace.getConfiguration("tn3270").get<string>("libraryPath", "").trim() ||
       siblingTnzCheckout(this.extensionPath);
-    if (tnzPath) {
-      env.TNZ_VIEW_TNZ_PATH = tnzPath;
+    if (libraryPath) {
+      env.VSCODE_3270_TNZ_PATH = libraryPath;
     }
-    env.TNZ_VIEW_LOG_DIR = this.logDir;
+    env.VSCODE_3270_LOG_DIR = this.logDir;
 
     // The editor's own working directory is often read-only, and tnz writes
     // its log relative to the process directory.
@@ -83,8 +83,8 @@ export class Sidecar extends EventEmitter {
     const args =
       python === "py" ? ["-3", "-u", script] : ["-u", script];
     log().info(`starting sidecar: ${python} ${args.join(" ")} (cwd ${cwd})`);
-    if (env.TNZ_VIEW_TNZ_PATH) {
-      log().info(`TNZ_VIEW_TNZ_PATH=${env.TNZ_VIEW_TNZ_PATH}`);
+    if (env.VSCODE_3270_TNZ_PATH) {
+      log().info(`VSCODE_3270_TNZ_PATH=${env.VSCODE_3270_TNZ_PATH}`);
     }
     const proc = spawn(python, args, {
       cwd,
@@ -160,7 +160,7 @@ function waitForReady(sidecar: Sidecar, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       cleanup();
-      reject(new Error("TNZ sidecar did not start (is tnz installed?)"));
+      reject(new Error("3270 sidecar did not start (is tnz installed?)"));
     }, timeoutMs);
 
     const onEvent = (ev: SidecarEvent) => {
@@ -173,7 +173,7 @@ function waitForReady(sidecar: Sidecar, timeoutMs: number): Promise<void> {
       cleanup();
       reject(
         new Error(
-          `TNZ sidecar exited before ready (code ${code}). pip install tnz ebcdic`
+          `3270 sidecar exited before ready (code ${code}). pip install tnz ebcdic`
         )
       );
     };
@@ -191,7 +191,7 @@ function waitForReady(sidecar: Sidecar, timeoutMs: number): Promise<void> {
 
 async function resolvePython(): Promise<string> {
   const configured = vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<string>("pythonPath", "")
     .trim();
   if (configured) {
@@ -211,7 +211,7 @@ async function resolvePython(): Promise<string> {
     log().debug(`python candidate not usable: ${cmd}`);
   }
   throw new Error(
-    "No Python interpreter found. Set tnzView.pythonPath to Python 3.10+."
+    "No Python interpreter found. Set tn3270.pythonPath to Python 3.10+."
   );
 }
 

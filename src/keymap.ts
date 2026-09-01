@@ -112,10 +112,10 @@ export const ACTION_LABELS: Record<string, string> = {
   "local:reset": "Reset (unlock keyboard, leave insert)",
 };
 
-/** Defaults with the user's tnzView.keymap merged over the top. */
+/** Defaults with the user's tn3270.keymap merged over the top. */
 export function resolveKeymap(): Keymap {
   const overrides = vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<Keymap>("keymap", {});
   const map: Keymap = { ...DEFAULT_KEYMAP };
   for (const [chord, action] of Object.entries(overrides || {})) {

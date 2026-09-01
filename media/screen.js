@@ -20,7 +20,7 @@ const EH_BLINK = 0xf1;
 const EH_REVERSE = 0xf2;
 const EH_UNDERSCORE = 0xf4;
 
-const config = window.__TNZ_CONFIG__ || {};
+const config = window.__VSCODE_3270_CONFIG__ || {};
 let colors = { ...DEFAULT_COLORS, ...(config.colors || {}) };
 let blinkEnabled = config.blink === true;
 let keymap = config.keymap || {};

@@ -27,7 +27,7 @@ export class HostItem extends vscode.TreeItem {
             : "vm"
     );
     this.command = {
-      command: "tnzView.hosts.connect",
+      command: "tn3270.hosts.connect",
       title: "Connect",
       arguments: [this],
     };

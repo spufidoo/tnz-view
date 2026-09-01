@@ -9,14 +9,14 @@ const HOSTS_KEY = "hosts";
 
 export function getHosts(): HostProfile[] {
   const raw = vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .get<HostProfile[]>(HOSTS_KEY, []);
   return Array.isArray(raw) ? raw.map(normalizeHost) : [];
 }
 
 export async function saveHosts(hosts: HostProfile[]): Promise<void> {
   await vscode.workspace
-    .getConfiguration("tnzView")
+    .getConfiguration("tn3270")
     .update(HOSTS_KEY, hosts, vscode.ConfigurationTarget.Global);
 }
 

@@ -2,22 +2,22 @@
 
 A macro is either a **tape** (text with `[action]` markers) or a **script** (a
 Python file that can read the screen and ask questions as it runs). Define
-both in `tnzView.macros` and play them from a key or from **TNZ 3270: Run
+both in `tn3270.macros` and play them from a key or from **3270 Terminal: Run
 Macro**. Tapes and scripts share the picker; they do not replace each other.
 
 ```json
-"tnzView.macros": {
+"tn3270.macros": {
   "listcat": "LISTC[enter]",
   "back to primary": "[pf3][pf3][pf3]",
   "edit jcl": ["=3.4[enter][wait]", "MY.JCL[enter]"],
   "logon": "[home][prompt:Userid][enter][wait][password:Password][enter]",
   "startlpar": { "script": "startlpar" }
 },
-"tnzView.keymap": {
+"tn3270.keymap": {
   "ctrl+l": "macro:listcat",
   "ctrl+alt+l": "macro:logon"
 },
-"tnzView.clickMacro": "startlpar"
+"tn3270.clickMacro": "startlpar"
 ```
 
 ## Tapes
@@ -31,11 +31,11 @@ A 3270 session tab must be focused.
 
 | How | What happens |
 | --- | --- |
-| Command palette → **TNZ 3270: Run Macro** | Pick a name from `tnzView.macros` |
+| Command palette → **3270 Terminal: Run Macro** | Pick a name from `tn3270.macros` |
 | A keymap chord `macro:<name>` | Same, without the picker |
 | The 3270 tab's command palette while that tab is active | Same as Run Macro |
 
-If no macros are defined, Run Macro offers to open the `tnzView.macros` setting.
+If no macros are defined, Run Macro offers to open the `tn3270.macros` setting.
 If the named macro is missing or the markers do not parse, a toast names the
 problem and nothing is typed.
 
@@ -44,7 +44,7 @@ another extension may be claiming it first. See [KEYMAP.md](KEYMAP.md).
 
 ## How to define one
 
-User `settings.json`, under `tnzView.macros`. Each key is the name you pick in
+User `settings.json`, under `tn3270.macros`. Each key is the name you pick in
 Run Macro and the name you put after `macro:` in the keymap.
 
 The value is either a string, or an **array of strings joined with no
@@ -52,7 +52,7 @@ separator**. The array is only there so a long sequence stays readable; it is
 not a list of independent macros.
 
 ```json
-"tnzView.macros": {
+"tn3270.macros": {
   "one line": "LISTC[enter]",
   "split only for reading": [
     "=3.4[enter][wait]",
@@ -174,7 +174,7 @@ default next time in this editor session. That lives only in memory; it is not
 written to settings. `[password:...]` answers are never kept, not even for the
 next run.
 
-Never put a password in `tnzView.macros` itself. Settings files are plain text
+Never put a password in `tn3270.macros` itself. Settings files are plain text
 and sync between machines. `[password:...]` exists so you do not have to.
 
 ### Literal `[`
@@ -281,7 +281,7 @@ unchanged.
 
 ### Where the file lives
 
-**TNZ 3270: Open Macros Folder** creates (and reveals) the macros directory
+**3270 Terminal: Open Macros Folder** creates (and reveals) the macros directory
 under this editor's global storage, and copies `startlpar.py` there the first
 time if it is missing.
 
@@ -297,7 +297,7 @@ with `..` are rejected.
 The folder is per machine and per editor. It is not `settings.json` and it is
 not git. Do not put passwords in the `.py` file.
 
-`tnzView.clickMacro` is the name of a macro (tape or script) to run on
+`tn3270.clickMacro` is the name of a macro (tape or script) to run on
 Ctrl+click (Cmd+click on macOS). The click is stored first, so `word_at(click)`
 sees the LPAR you pointed at.
 
@@ -387,7 +387,7 @@ nothing on the screen marks the moment you need.
 
 ### Tracing a script
 
-Set `tnzView.macroTrace` to `true` and every step is logged to the **3270**
+Set `tn3270.macroTrace` to `true` and every step is logged to the **3270**
 output channel, which opens by itself when a traced macro starts:
 
 ```
@@ -417,7 +417,7 @@ spacing of a prompt you are matching with `on_screen`.
 `examples/startlpar.py` in the repo is the Vista Start LPAR flow: click a
 name, map a short userid code, log on, stop with a message if the screen is
 wrong. After **Open Macros Folder**, that file is in the macros directory as
-`startlpar.py`. Point `tnzView.macros` at it and set `tnzView.clickMacro` as
+`startlpar.py`. Point `tn3270.macros` at it and set `tn3270.clickMacro` as
 in the sample at the top of this page.
 
 ## Related

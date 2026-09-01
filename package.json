@@ -1,14 +1,14 @@
 {
-  "name": "tnz-view",
-  "displayName": "TNZ 3270",
+  "name": "vscode-3270",
+  "displayName": "3270 Terminal",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/spufidoo/tnz-view.git"
+    "url": "https://github.bmc.com/mdavage/VSCode-3270.git"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -24,14 +24,14 @@
     "ISPF"
   ],
   "activationEvents": [
-    "onWebviewPanel:tnzView.session"
+    "onWebviewPanel:tn3270.session"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": "TNZ 3270",
+      "title": "3270 Terminal",
       "properties": {
-        "tnzView.hosts": {
+        "tn3270.hosts": {
           "type": "array",
           "default": [],
           "description": "Saved 3270 host connection profiles.",
@@ -39,23 +39,23 @@
             "type": "object"
           }
         },
-        "tnzView.pythonPath": {
+        "tn3270.pythonPath": {
           "type": "string",
           "default": "",
           "description": "Python 3.10+ interpreter that has the tnz package installed. Empty uses PATH / py launcher."
         },
-        "tnzView.keymap": {
+        "tn3270.keymap": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Override 3270 key bindings. Each entry maps a chord such as `alt+1` to an action: `aid:<name>` (enter, clear, attn, pa1-3, pf1-24), `nav:<name>` (tab, backtab, left, right, up, down, home, end, wordleft, wordright, backspace, delete, eraseeof, eraseinput, newline), `local:<name>` (insert, reset) or `macro:<name>` for an entry in `#tnzView.macros#`. An empty value removes a default binding. Run **TNZ 3270: Show Keyboard Map** to see the result, or see [docs/KEYMAP.md](https://github.com/spufidoo/tnz-view/blob/main/docs/KEYMAP.md).",
+          "markdownDescription": "Override 3270 key bindings. Each entry maps a chord such as `alt+1` to an action: `aid:<name>` (enter, clear, attn, pa1-3, pf1-24), `nav:<name>` (tab, backtab, left, right, up, down, home, end, wordleft, wordright, backspace, delete, eraseeof, eraseinput, newline), `local:<name>` (insert, reset) or `macro:<name>` for an entry in `#tn3270.macros#`. An empty value removes a default binding. Run **3270 Terminal: Show Keyboard Map** to see the result, or see [docs/KEYMAP.md](https://github.bmc.com/mdavage/VSCode-3270/blob/main/docs/KEYMAP.md).",
           "additionalProperties": {
             "type": "string"
           }
         },
-        "tnzView.macros": {
+        "tn3270.macros": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **TNZ 3270: Run Macro**. A tape is text with `[action]` markers, for example `TSO[enter][wait]LISTC[enter]`. A script is `{ \"script\": \"startlpar\" }`, a Python file in the macros folder (**TNZ 3270: Open Macros Folder**). Never put a password in this file. See [docs/MACROS.md](https://github.com/spufidoo/tnz-view/blob/main/docs/MACROS.md).",
+          "markdownDescription": "Named macros, playable from a key with the `macro:<name>` keymap action or from **3270 Terminal: Run Macro**. A tape is text with `[action]` markers, for example `TSO[enter][wait]LISTC[enter]`. A script is `{ \"script\": \"startlpar\" }`, a Python file in the macros folder (**3270 Terminal: Open Macros Folder**). Never put a password in this file. See [docs/MACROS.md](https://github.bmc.com/mdavage/VSCode-3270/blob/main/docs/MACROS.md).",
           "additionalProperties": {
             "oneOf": [
               {
@@ -82,22 +82,22 @@
             ]
           }
         },
-        "tnzView.clickMacro": {
+        "tn3270.clickMacro": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Name of a `tnzView.macros` entry to run on Ctrl+click (Cmd+click on macOS) in a 3270 session. Empty means the click only moves the cursor. Typical value: `startlpar`."
+          "markdownDescription": "Name of a `tn3270.macros` entry to run on Ctrl+click (Cmd+click on macOS) in a 3270 session. Empty means the click only moves the cursor. Typical value: `startlpar`."
         },
-        "tnzView.fontFamily": {
+        "tn3270.fontFamily": {
           "type": "string",
           "default": "",
           "markdownDescription": "Default font for 3270 screens, as a CSS font list, e.g. `Cascadia Mono` or `\"IBM 3270\", Consolas`. A host profile with its own **Font** set overrides this. Empty uses the built-in monospace stack. Must be monospaced: columns sit on a fixed pitch, so a proportional font will not line up."
         },
-        "tnzView.macroTrace": {
+        "tn3270.macroTrace": {
           "type": "boolean",
           "default": false,
           "markdownDescription": "Log every step a script macro takes to the **3270** output channel: what is typed, which AID key is sent, where the cursor was, and what `on_screen` found. Passwords from `ask_password` are replaced with asterisks. The channel opens automatically when a traced macro starts."
         },
-        "tnzView.selection": {
+        "tn3270.selection": {
           "type": "string",
           "enum": [
             "block",
@@ -110,7 +110,7 @@
           ],
           "markdownDescription": "How selecting and copying works in a 3270 session. **block** marks a rectangle of rows and columns, the way Vista TN3270 and PCOMM do. **stream** selects a run of characters like a text editor, which also allows drag-to-another-app and the webview's own context-menu copy. Either way, Ctrl+C copies and Ctrl+V pastes."
         },
-        "tnzView.transfer.syntax": {
+        "tn3270.transfer.syntax": {
           "type": "string",
           "enum": [
             "tso",
@@ -123,18 +123,18 @@
           ],
           "markdownDescription": "How IND$FILE options are introduced. TSO takes bare keywords and rejects a parenthesis with `IKJ56712I INVALID KEYWORD, (`; CMS uses its usual `(`."
         },
-        "tnzView.transfer.idleTimeout": {
+        "tn3270.transfer.idleTimeout": {
           "type": "number",
           "default": 60,
           "minimum": 5,
           "markdownDescription": "Seconds to wait for IND$FILE to respond before giving up. The clock resets whenever the transfer makes progress, so this only fires when the host has gone quiet — usually because the command was typed somewhere that is not a ready prompt."
         },
-        "tnzView.transfer.options": {
+        "tn3270.transfer.options": {
           "type": "string",
           "default": "",
           "markdownDescription": "IND$FILE options offered as the default when starting a transfer, for example `RECFM(V) LRECL(255)`. `ASCII` and `CRLF` are added automatically for text transfers."
         },
-        "tnzView.tnzPath": {
+        "tn3270.libraryPath": {
           "type": "string",
           "default": "",
           "description": "Optional path to a local IBM/tnz checkout added to PYTHONPATH (for development)."
@@ -144,328 +144,330 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "tnzView",
-          "title": "TNZ 3270",
+          "id": "tn3270",
+          "title": "3270 Terminal",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "tnzView": [
+      "tn3270": [
         {
-          "id": "tnzView.hosts",
+          "id": "tn3270.hosts",
           "name": "Hosts"
         }
       ]
     },
     "viewsWelcome": [
       {
-        "view": "tnzView.hosts",
-        "contents": "No 3270 hosts yet.\n[Add Host](command:tnzView.hosts.add)\nRequires Python 3.10+ and `pip install tnz ebcdic`."
+        "view": "tn3270.hosts",
+        "contents": "No 3270 hosts yet.\n[Add Host](command:tn3270.hosts.add)\nRequires Python 3.10+ and `pip install tnz ebcdic`."
       }
     ],
     "commands": [
       {
-        "command": "tnzView.hosts.add",
+        "command": "tn3270.hosts.add",
         "title": "Add Host",
         "icon": "$(add)",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.hosts.edit",
+        "command": "tn3270.hosts.edit",
         "title": "Edit Host",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.hosts.delete",
+        "command": "tn3270.hosts.delete",
         "title": "Delete Host",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.hosts.duplicate",
+        "command": "tn3270.hosts.duplicate",
         "title": "Duplicate Host",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.hosts.connect",
+        "command": "tn3270.hosts.connect",
         "title": "Connect",
         "icon": "$(debug-start)",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.hosts.disconnect",
+        "command": "tn3270.hosts.disconnect",
         "title": "Disconnect",
         "icon": "$(debug-disconnect)",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.session.clear",
+        "command": "tn3270.session.clear",
         "title": "Send CLEAR",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.session.attn",
+        "command": "tn3270.session.attn",
         "title": "Send ATTN",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.showKeymap",
+        "command": "tn3270.showKeymap",
         "title": "Show Keyboard Map",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.openMacrosFolder",
+        "command": "tn3270.openMacrosFolder",
         "title": "Open Macros Folder",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.session.runMacro",
+        "command": "tn3270.session.runMacro",
         "title": "Run Macro",
-        "category": "TNZ 3270"
+        "category": "3270 Terminal"
       },
       {
-        "command": "tnzView.session.download",
+        "command": "tn3270.session.download",
         "title": "Download File from Host (IND$FILE)",
-        "category": "TNZ 3270",
+        "category": "3270 Terminal",
         "icon": "$(cloud-download)"
       },
       {
-        "command": "tnzView.session.upload",
+        "command": "tn3270.session.upload",
         "title": "Upload File to Host (IND$FILE)",
-        "category": "TNZ 3270",
+        "category": "3270 Terminal",
         "icon": "$(cloud-upload)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "tnzView.hosts.add",
-          "when": "view == tnzView.hosts",
+          "command": "tn3270.hosts.add",
+          "when": "view == tn3270.hosts",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "tnzView.hosts.connect",
-          "when": "view == tnzView.hosts && viewItem == host",
+          "command": "tn3270.hosts.connect",
+          "when": "view == tn3270.hosts && viewItem == host",
           "group": "inline"
         },
         {
-          "command": "tnzView.hosts.disconnect",
-          "when": "view == tnzView.hosts && viewItem == hostConnected",
+          "command": "tn3270.hosts.disconnect",
+          "when": "view == tn3270.hosts && viewItem == hostConnected",
           "group": "inline"
         },
         {
-          "command": "tnzView.hosts.connect",
-          "when": "view == tnzView.hosts && viewItem == host",
+          "command": "tn3270.hosts.connect",
+          "when": "view == tn3270.hosts && viewItem == host",
           "group": "1_session"
         },
         {
-          "command": "tnzView.hosts.disconnect",
-          "when": "view == tnzView.hosts && viewItem == hostConnected",
+          "command": "tn3270.hosts.disconnect",
+          "when": "view == tn3270.hosts && viewItem == hostConnected",
           "group": "1_session"
         },
         {
-          "command": "tnzView.hosts.edit",
-          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "command": "tn3270.hosts.edit",
+          "when": "view == tn3270.hosts && viewItem =~ /host/",
           "group": "2_edit"
         },
         {
-          "command": "tnzView.hosts.duplicate",
-          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "command": "tn3270.hosts.duplicate",
+          "when": "view == tn3270.hosts && viewItem =~ /host/",
           "group": "2_edit"
         },
         {
-          "command": "tnzView.hosts.delete",
-          "when": "view == tnzView.hosts && viewItem =~ /host/",
+          "command": "tn3270.hosts.delete",
+          "when": "view == tn3270.hosts && viewItem =~ /host/",
           "group": "3_delete"
         }
       ],
       "editor/title": [
         {
-          "command": "tnzView.session.download",
-          "when": "activeWebviewPanelId == tnzView.session",
+          "command": "tn3270.session.download",
+          "when": "activeWebviewPanelId == tn3270.session",
           "group": "navigation@1"
         },
         {
-          "command": "tnzView.session.upload",
-          "when": "activeWebviewPanelId == tnzView.session",
+          "command": "tn3270.session.upload",
+          "when": "activeWebviewPanelId == tn3270.session",
           "group": "navigation@2"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f1",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f2",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f3",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f4",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f5",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f6",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f7",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f8",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f9",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f10",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f11",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "f12",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f1",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f2",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f3",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f4",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f5",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f6",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f7",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f8",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f9",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f10",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f11",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "shift+f12",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+1",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+2",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+3",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+a",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+c",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+left",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+right",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "alt+delete",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       },
       {
-        "command": "tnzView.session.keyGuard",
+        "command": "tn3270.session.keyGuard",
         "key": "ctrl+r",
-        "when": "activeWebviewPanelId == tnzView.session"
+        "when": "activeWebviewPanelId == tn3270.session"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "package": "node scripts/package.js",
+    "package:bmc": "node scripts/package.js bmc"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
