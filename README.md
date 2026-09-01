@@ -57,6 +57,16 @@ If the size is too small, the host writes past the end of the buffer and tnz dro
 the session. The reported address is the *first* one past the end, so it is only a
 lower bound and raising the size one model at a time will keep failing.
 
+## Sessions
+
+Each connected host gets a tab. Closing it disconnects; connecting again from the
+sidebar reopens it. A session tab left open across a window reload comes back and
+reconnects itself, so a 3270 tab survives **Developer: Reload Window** the way an
+editor does — it does not resume the host session, it logs on again.
+
+All sessions share one Python sidecar process. If it stops, the open tabs say
+`SIDECAR STOPPED` on the status line and connecting any host starts it again.
+
 ## Keys (3270 tab focused)
 
 | Key | Action |

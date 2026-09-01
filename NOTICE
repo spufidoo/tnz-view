@@ -1,5 +1,6 @@
 TNZ 3270 (tnz-view)
-Copyright 2026
+Copyright (c) 2026 Marcus Davage
+License: Apache License 2.0
 
 This project is a VS Code / Cursor extension that uses IBM's tnz library
 as a runtime dependency for TN3270 protocol handling.

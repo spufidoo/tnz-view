@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 const vscode = acquireVsCodeApi();
 
 const DEFAULT_COLORS = {

@@ -304,12 +304,34 @@ sees the LPAR you pointed at.
 ### How a script runs
 
 The file is executed on the session thread with a small API (below) and a
-restricted `__builtins__` (no `open`, no `import`). Top-level `return` stops
-the script, as does Escape on an `ask` / `ask_password` box. Errors show on
-the status line. `print` goes to the 3270 log, not into the JSON pipe.
+restricted `__builtins__`. Top-level `return` stops the script, as does Escape
+on an `ask` / `ask_password` box. Errors show on the status line, naming the
+line number in your file. `print` goes to the 3270 log, not into the JSON pipe.
 
-A script is **not** a sandbox against a hostile file. Only run scripts you
-wrote or trust, the same as a Vista `.mac`.
+### What the script namespace has
+
+Everything in the API table, plus these builtins and nothing else:
+
+```
+abs bool dict enumerate float int isinstance len list max min
+print range str tuple zip  True False None
+```
+
+That has consequences worth knowing before you write anything long:
+
+- **No `import`.** There is no `__import__`, so `import re` fails. Screen text
+  is a plain `str`, so `find`, `split`, `startswith` and slicing cover most of
+  what a macro needs.
+- **No exception classes.** `Exception`, `ValueError` and friends are not
+  defined, so `try:` / `except ValueError:` raises `NameError` on the except
+  line rather than catching anything. Test with `if` instead.
+- **No `open`, no file or network access.** A macro drives the session; use
+  [file transfer](TRANSFER.md) to move data.
+
+These restrictions are a guardrail against a macro doing something surprising
+by accident, **not** a security boundary. Python offers no real way to sandbox
+`exec`, and a determined script can reach anything the editor can. Only run
+scripts you wrote or trust, the same as a Vista `.mac`.
 
 ### API
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import { randomUUID } from "crypto";
 import * as vscode from "vscode";
 import { DEFAULT_COLORS, HostColors, HostProfile } from "./types";
@@ -9,10 +12,6 @@ export function getHosts(): HostProfile[] {
     .getConfiguration("tnzView")
     .get<HostProfile[]>(HOSTS_KEY, []);
   return Array.isArray(raw) ? raw.map(normalizeHost) : [];
-}
-
-export function getHost(id: string): HostProfile | undefined {
-  return getHosts().find((h) => h.id === id);
 }
 
 export async function saveHosts(hosts: HostProfile[]): Promise<void> {

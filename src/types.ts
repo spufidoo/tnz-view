@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 /** The eight 3270 colour values plus the screen background. */
 export interface HostColors {
   background: string;
@@ -110,6 +113,8 @@ export interface ScriptAskEvent {
   askId: string;
   kind: "input" | "password" | "warn";
   prompt: string;
+  /** The macro that asked, for the title of the input box. */
+  name?: string;
   value?: string;
   maxLength?: number;
 }

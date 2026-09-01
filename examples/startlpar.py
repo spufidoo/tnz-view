@@ -6,6 +6,9 @@
 #
 # Copy this file to the macros folder (TNZ 3270: Open Macros Folder)
 # if it is not already there. Do not put a password in this file.
+#
+# Copyright (c) 2026 Marcus Davage
+# SPDX-License-Identifier: Apache-2.0
 
 if not unlocked():
     return

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as fs from "fs";
 import * as vscode from "vscode";
 import { resolveKeymap } from "./keymap";
@@ -9,10 +12,12 @@ import {
   DEFAULT_COLORS,
   HostProfile,
   ScriptAskEvent,
+  SidecarCommand,
   SidecarEvent,
   TransferEvent,
   TransferRequest,
 } from "./types";
+import { getNonce } from "./webview";
 
 export class SessionPanel {
   static readonly viewType = "tnzView.session";
@@ -21,6 +26,8 @@ export class SessionPanel {
   private readonly panel: vscode.WebviewPanel;
   private insertMode = false;
   private transferSeq = 0;
+  private attemptedConnect = false;
+  private reportedDead = false;
   private readonly pending = new Map<string, (ev: TransferEvent) => void>();
 
   constructor(
@@ -28,19 +35,27 @@ export class SessionPanel {
     public host: HostProfile,
     extensionUri: vscode.Uri,
     private readonly macrosDir: string,
-    private readonly hooks: { onDispose: () => void; onViewState: () => void }
+    private readonly hooks: { onDispose: () => void; onViewState: () => void },
+    restored?: vscode.WebviewPanel
   ) {
     this.sessionId = host.id;
-    this.panel = vscode.window.createWebviewPanel(
-      SessionPanel.viewType,
-      host.label,
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, "media")],
-      }
-    );
+    const options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(extensionUri, "media")],
+    };
+    if (restored) {
+      // A panel VS Code brought back across a reload keeps its position but
+      // not its options, and its script context is gone either way.
+      this.panel = restored;
+      this.panel.webview.options = options;
+    } else {
+      this.panel = vscode.window.createWebviewPanel(
+        SessionPanel.viewType,
+        host.label,
+        vscode.ViewColumn.One,
+        { ...options, retainContextWhenHidden: true }
+      );
+    }
     this.panel.iconPath = vscode.Uri.joinPath(extensionUri, "media", "icon.svg");
     this.panel.webview.html = this.html(this.panel.webview, extensionUri);
 
@@ -50,27 +65,22 @@ export class SessionPanel {
       } catch {
         /* ignore */
       }
-      for (const [transferId, resolve] of this.pending) {
-        resolve({
-          op: "transfer",
-          sessionId: this.sessionId,
-          transferId,
-          state: "done",
-          ok: false,
-          message: "the session was closed",
-        });
-      }
-      this.pending.clear();
+      this.failPending("the session was closed");
       this.hooks.onDispose();
     });
 
     this.panel.onDidChangeViewState(() => this.hooks.onViewState());
 
     this.panel.webview.onDidReceiveMessage((msg: { op: string; [k: string]: unknown }) => {
-      if (msg.op === "key" || msg.op === "paste") {
-        this.sidecar.send({ ...msg, sessionId: this.sessionId });
+      if (msg.op === "ready") {
+        // The webview has (re)loaded with an empty grid, so give it the
+        // settings and ask the host side for the screen it is missing.
+        this.sendConfig();
+        this.send({ op: "refresh", sessionId: this.sessionId });
+      } else if (msg.op === "key" || msg.op === "paste") {
+        this.send({ ...msg, sessionId: this.sessionId });
       } else if (msg.op === "click") {
-        this.sidecar.send({ ...msg, sessionId: this.sessionId });
+        this.send({ ...msg, sessionId: this.sessionId });
         if (msg.ctrl) {
           const name = vscode.workspace
             .getConfiguration("tnzView")
@@ -129,6 +139,64 @@ export class SessionPanel {
   }
 
   /**
+   * Send to the sidecar, reporting a dead one rather than throwing.
+   *
+   * Every keystroke comes through here. A raw throw from the webview's
+   * message handler goes nowhere the user can see, which looks like a
+   * session that has simply stopped accepting typing.
+   */
+  private send(cmd: SidecarCommand): boolean {
+    try {
+      this.sidecar.send(cmd);
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      log().error(`session ${this.host.label}: ${message}`);
+      this.showDead();
+      // Only worth a toast for a session that was up: a panel that never
+      // connected has already reported why it could not start.
+      if (!this.reportedDead && this.attemptedConnect) {
+        this.reportedDead = true;
+        void vscode.window.showWarningMessage(
+          `TNZ 3270: the 3270 sidecar stopped. Connect ${this.host.label} again to restart it.`
+        );
+      }
+      return false;
+    }
+  }
+
+  /** Put the bad news on the status line, where a locked keyboard shows. */
+  private showDead(): void {
+    void this.panel.webview.postMessage({
+      op: "oia",
+      message: "SIDECAR STOPPED — reconnect to restart it",
+    });
+  }
+
+  /** Settle any transfer still waiting, so its progress bar cannot hang. */
+  private failPending(message: string): void {
+    for (const [transferId, resolve] of this.pending) {
+      resolve({
+        op: "transfer",
+        sessionId: this.sessionId,
+        transferId,
+        state: "done",
+        ok: false,
+        message,
+      });
+    }
+    this.pending.clear();
+  }
+
+  /** The sidecar process has gone; nothing queued for it will ever answer. */
+  handleSidecarExit(): void {
+    this.failPending("the 3270 sidecar stopped");
+    this.showDead();
+    // The exit is announced once for the window, not once per tab.
+    this.reportedDead = true;
+  }
+
+  /**
    * Run an IND$FILE transfer.
    *
    * The sidecar answers with a single done event, so the promise settles even
@@ -138,7 +206,7 @@ export class SessionPanel {
     const transferId = `t${++this.transferSeq}`;
     return new Promise((resolve) => {
       this.pending.set(transferId, resolve);
-      this.sidecar.send({
+      const sent = this.send({
         op: "transfer",
         sessionId: this.sessionId,
         transferId,
@@ -149,6 +217,9 @@ export class SessionPanel {
           .getConfiguration("tnzView")
           .get<number>("transfer.idleTimeout", 60),
       });
+      if (!sent) {
+        this.failPending("the 3270 sidecar stopped");
+      }
     });
   }
 
@@ -214,7 +285,7 @@ export class SessionPanel {
       if (trace) {
         log().show(true);
       }
-      this.sidecar.send({
+      this.send({
         op: "script",
         sessionId: this.sessionId,
         name,
@@ -229,7 +300,7 @@ export class SessionPanel {
     if (!steps) {
       return;
     }
-    this.sidecar.send({
+    this.send({
       op: "macro",
       sessionId: this.sessionId,
       name,
@@ -242,17 +313,13 @@ export class SessionPanel {
 
   private async answerScriptAsk(ev: ScriptAskEvent): Promise<void> {
     const reply = (cancelled: boolean, value?: string) => {
-      try {
-        this.sidecar.send({
-          op: "scriptReply",
-          sessionId: this.sessionId,
-          askId: ev.askId,
-          cancelled,
-          value: value ?? "",
-        });
-      } catch {
-        /* sidecar gone */
-      }
+      this.send({
+        op: "scriptReply",
+        sessionId: this.sessionId,
+        askId: ev.askId,
+        cancelled,
+        value: value ?? "",
+      });
       this.focus();
     };
     if (ev.kind === "warn") {
@@ -265,7 +332,7 @@ export class SessionPanel {
       return;
     }
     const value = await vscode.window.showInputBox({
-      title: `Macro`,
+      title: ev.name ? `Macro "${ev.name}"` : "Macro",
       prompt: ev.prompt,
       value: ev.kind === "password" ? undefined : ev.value,
       password: ev.kind === "password",
@@ -286,7 +353,7 @@ export class SessionPanel {
   }
 
   sendAid(aid: string): void {
-    this.sidecar.send({
+    this.send({
       op: "key",
       sessionId: this.sessionId,
       type: "aid",
@@ -296,7 +363,9 @@ export class SessionPanel {
 
   connect(): void {
     this.panel.title = this.host.label;
-    this.sidecar.send({
+    this.attemptedConnect = true;
+    this.reportedDead = false;
+    this.send({
       op: "connect",
       sessionId: this.sessionId,
       host: this.host.host,
@@ -328,6 +397,9 @@ export class SessionPanel {
     );
     const nonce = getNonce();
     const config = JSON.stringify({
+      // Stored by the webview, so a panel VS Code restores after a reload can
+      // be matched back to its host profile.
+      hostId: this.sessionId,
       colors: this.host.colors ?? DEFAULT_COLORS,
       blink: this.host.blink === true,
       keymap: resolveKeymap(),
@@ -381,15 +453,6 @@ export function getSelectionMode(): "block" | "stream" {
 }
 
 function firstLine(message: string): string {
-    const line = message.split("\n").find((l) => l.trim()) ?? message;
-    return line.length > 320 ? `${line.slice(0, 320)}…` : line;
-}
-
-function getNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let s = "";
-  for (let i = 0; i < 32; i++) {
-    s += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return s;
+  const line = message.split("\n").find((l) => l.trim()) ?? message;
+  return line.length > 320 ? `${line.slice(0, 320)}…` : line;
 }

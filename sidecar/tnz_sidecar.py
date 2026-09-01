@@ -2,10 +2,15 @@
 
 One process, one worker thread per session. Commands arrive on stdin;
 events are written to stdout as a single JSON object per line.
+
+Copyright (c) 2026 Marcus Davage
+
+SPDX-License-Identifier: Apache-2.0
 """
 
 from __future__ import annotations
 
+import ast
 import base64
 import json
 import os
@@ -13,7 +18,6 @@ import queue
 import re
 import sys
 import threading
-import textwrap
 import time
 import traceback
 
@@ -90,6 +94,10 @@ except ImportError:
 _stdout_lock = threading.Lock()
 _sessions: dict[str, "Session"] = {}
 _sessions_lock = threading.Lock()
+# tnz reads SESSION_SECLEVEL out of the environment while it builds the SSL
+# context, and the environment is shared by every session in this process.
+# Held for the length of a connect so two of them cannot overlap.
+_connect_lock = threading.Lock()
 
 
 def emit(payload: dict) -> None:
@@ -103,9 +111,16 @@ def b64(data: bytes | bytearray) -> str:
     return base64.b64encode(bytes(data)).decode("ascii")
 
 
-# Standard 3270 screen sizes, smallest buffer first. 132- and 160-column
-# models come after the 80-column ones so a suggestion keeps the current
-# width where it can.
+def _set_env(name: str, value) -> None:
+    """Set an environment variable, or remove it when the value is empty."""
+    if value:
+        os.environ[name] = str(value)
+    else:
+        os.environ.pop(name, None)
+
+
+# Standard 3270 screen sizes, 80-column models first and each group in
+# increasing buffer size, so a suggestion keeps the current width where it can.
 _MODELS = ((24, 80), (32, 80), (43, 80), (27, 132), (24, 132), (62, 160))
 
 
@@ -416,6 +431,26 @@ def _script_print(*args, **kwargs) -> None:
     print(*args, **kwargs)
 
 
+def _compile_script(source: str, path: str):
+    """Compile a macro so that a top-level return exits it.
+
+    The statements are grafted into a function through the syntax tree rather
+    than by indenting the text. Every node keeps the line number the user sees
+    in the editor, so a traceback points at the right line, and a multi-line
+    string literal is not silently given four extra spaces per line.
+    """
+    body = ast.parse(source, path).body
+    module = ast.parse(
+        "def __tnz_script():\n    pass\n__tnz_script()\n", "<macro>"
+    )
+    function = module.body[0]
+    if body:
+        function.body = body
+        function.end_lineno = getattr(body[-1], "end_lineno", None)
+    ast.fix_missing_locations(module)
+    return compile(module, path, "exec")
+
+
 class _Click:
     def __init__(self, row: int, col: int) -> None:
         self.row = row
@@ -425,8 +460,11 @@ class _Click:
 class _ScriptApi:
     """Functions injected into a user script's globals."""
 
-    def __init__(self, session: "Session", tracing: bool = False) -> None:
+    def __init__(
+        self, session: "Session", tracing: bool = False, name: str = ""
+    ) -> None:
         self.session = session
+        self.name = name
         self._ask_n = 0
         self.tracing = tracing
         # Anything ask_password() returned, so a trace of what was typed can
@@ -689,6 +727,7 @@ class _ScriptApi:
             "askId": ask_id,
             "kind": kind,
             "prompt": str(prompt),
+            "name": self.name,
         }
         if default is not None:
             payload["value"] = str(default)
@@ -722,7 +761,20 @@ class Session:
                     cmd = None
 
                 if cmd is not None:
-                    self._handle(cmd)
+                    try:
+                        self._handle(cmd)
+                    except Exception:
+                        # One bad command must not take the thread with it:
+                        # the session would go on queueing keystrokes that
+                        # nothing is left to read.
+                        emit(
+                            {
+                                "op": "error",
+                                "sessionId": self.session_id,
+                                "message": f"{cmd.get('op')} failed: "
+                                + traceback.format_exc(limit=2),
+                            }
+                        )
 
                 tns = self.tns
                 if tns is None:
@@ -800,6 +852,15 @@ class Session:
             self._connect(cmd)
         elif op == "disconnect":
             self._disconnect()
+            # Nothing left to serve, so let the thread end rather than poll an
+            # empty queue for the rest of the editor's life. A later connect
+            # gets a fresh session.
+            self.stop.set()
+            drop_session(self)
+        elif op == "refresh":
+            # The webview reloaded and has nothing to draw until the host
+            # next changes something, which could be a long wait.
+            self._emit_screen()
         elif op == "key":
             self._key(cmd)
         elif op == "click":
@@ -839,9 +900,6 @@ class Session:
         sec_level = cmd.get("secLevel")
         tn3270e = bool(cmd.get("tn3270e", True))
 
-        if sec_level:
-            os.environ["SESSION_SECLEVEL"] = str(sec_level)
-
         tns = Tnz(name=self.session_id)
         # Advertising colour in the query reply is what invites the host to
         # send extended colour orders; without it we only get field colours.
@@ -853,8 +911,10 @@ class Session:
             # Character set 0xF1 carries the APL/line-drawing glyphs ISPF uses
             # for panel borders. tnz only wires this up for a UTF-8 tty, and
             # our stdout is a pipe.
-            from tnz import cp310 as _cp310  # registers the codec
+            from tnz import cp310 as _  # noqa: F401  registers the codec
 
+            # A tuple sets the codec for one character set: 0xF1 is the
+            # alternate (GE) set, so the code page above stays in place.
             tns.encoding = ("cp310", 0xF1)
         except Exception as exc:
             emit(
@@ -883,7 +943,14 @@ class Session:
             )
 
         try:
-            tns.connect(host, int(port), secure=secure, verifycert=verify)
+            with _connect_lock:
+                _set_env("SESSION_SECLEVEL", sec_level)
+                try:
+                    tns.connect(
+                        host, int(port), secure=secure, verifycert=verify
+                    )
+                finally:
+                    _set_env("SESSION_SECLEVEL", None)
         except Exception as exc:
             reason = _explain_failure(exc, tns=tns, secure=secure)
             emit(
@@ -1164,19 +1231,25 @@ class Session:
                 }
             )
             return
-        api = _ScriptApi(self, tracing=bool(cmd.get("trace")))
+        api = _ScriptApi(self, tracing=bool(cmd.get("trace")), name=name)
         if api.tracing:
             api._trace(f"macro {name}: start ({path})")
         try:
-            # Wrapped in a function so a script can stop with a top-level
-            # return, the way an emulator macro exits.
-            wrapped = (
-                "def __tnz_script():\n"
-                + textwrap.indent(source, "    ")
-                + "\n__tnz_script()\n"
+            compiled = _compile_script(source, path)
+        except SyntaxError as exc:
+            emit(
+                {
+                    "op": "error",
+                    "sessionId": self.session_id,
+                    "message": f"macro {name}: line {exc.lineno or 1}: "
+                    f"{exc.msg}",
+                }
             )
-            compiled = compile(wrapped, path, "exec")
+            return
+        try:
             ns = api.namespace()
+            # The click that started the macro belongs to this run only.
+            self.last_click = None
             exec(compiled, ns, ns)
         except _ScriptCancelled:
             pass
@@ -1411,11 +1484,22 @@ def _mask_hidden(text: str, plane_fa, attrs: bytearray, size: int) -> str:
 def get_session(session_id: str) -> Session:
     with _sessions_lock:
         ses = _sessions.get(session_id)
+        # A stopped or dead thread cannot serve commands, and queueing to one
+        # would look like a session that has gone quiet for no reason.
+        if ses is not None and (ses.stop.is_set() or not ses.thread.is_alive()):
+            ses = None
         if ses is None:
             ses = Session(session_id)
             _sessions[session_id] = ses
             ses.start()
         return ses
+
+
+def drop_session(session: Session) -> None:
+    """Forget a session, unless a later connect has already replaced it."""
+    with _sessions_lock:
+        if _sessions.get(session.session_id) is session:
+            del _sessions[session.session_id]
 
 
 def main() -> int:

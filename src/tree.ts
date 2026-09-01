@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as vscode from "vscode";
 import { getHosts } from "./hosts";
 import { HostProfile, SessionStatus } from "./types";
@@ -48,9 +51,8 @@ export class HostTreeProvider
   readonly onDidChangeTreeData = this._onDidChange.event;
   private readonly status = new Map<string, SessionStatus>();
 
-  refresh(id?: string): void {
+  refresh(): void {
     this._onDidChange.fire(undefined);
-    void id;
   }
 
   setStatus(hostId: string, status: SessionStatus): void {

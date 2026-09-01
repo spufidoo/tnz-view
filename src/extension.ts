@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as fs from "fs";
 import * as path from "path";
 import { randomUUID } from "crypto";
@@ -93,10 +96,64 @@ export function activate(context: vscode.ExtensionContext): void {
     log().info(msg);
   });
   sidecar.on("exit", () => {
-    for (const id of sessions.keys()) {
+    const open = [...sessions.entries()];
+    for (const [id, panel] of open) {
       tree.setStatus(id, "lost");
+      panel.handleSidecarExit();
+    }
+    if (open.length) {
+      void vscode.window.showWarningMessage(
+        open.length === 1
+          ? "TNZ 3270: the 3270 sidecar stopped. Connect again to restart it."
+          : `TNZ 3270: the 3270 sidecar stopped, ending ${open.length} sessions. Connect again to restart it.`
+      );
     }
   });
+
+  /** Start the sidecar for a host, reporting a failure against that host. */
+  const startSidecar = async (host: HostProfile): Promise<boolean> => {
+    try {
+      await sidecar.ensureStarted();
+      return true;
+    } catch (err) {
+      reportError("start sidecar", err);
+      tree.setStatus(host.id, "disconnected");
+      return false;
+    }
+  };
+
+  /**
+   * Open a session panel for a host and track it.
+   *
+   * `restored` is the panel VS Code hands back after a window reload; without
+   * one a new tab is created.
+   */
+  const createSession = (
+    host: HostProfile,
+    restored?: vscode.WebviewPanel
+  ): SessionPanel => {
+    const panel = new SessionPanel(
+      sidecar,
+      host,
+      context.extensionUri,
+      macrosDir,
+      {
+        onDispose: () => {
+          sessions.delete(host.id);
+          if (focusedId === host.id) {
+            focusedId = undefined;
+          }
+          tree.setStatus(host.id, "disconnected");
+          syncSession();
+        },
+        onViewState: syncSession,
+      },
+      restored
+    );
+    sessions.set(host.id, panel);
+    focusedId = host.id;
+    return panel;
+  };
 
   const hostFromArg = (item?: HostItem | HostProfile): HostProfile | undefined => {
     if (!item) {
@@ -122,6 +179,38 @@ export function activate(context: vscode.ExtensionContext): void {
   const openEditor = (host: HostProfile, isNew: boolean): void => {
     HostEditorPanel.show(context.extensionUri, host, isNew, saveHost);
   };
+
+  // Without this a 3270 tab left open across a window reload comes back as a
+  // blank panel that is attached to nothing and can never be revived.
+  context.subscriptions.push(
+    vscode.window.registerWebviewPanelSerializer(SessionPanel.viewType, {
+      async deserializeWebviewPanel(
+        panel: vscode.WebviewPanel,
+        state: unknown
+      ): Promise<void> {
+        const hostId =
+          state && typeof state === "object"
+            ? String((state as { hostId?: unknown }).hostId ?? "")
+            : "";
+        const host = getHosts().find((h) => h.id === hostId);
+        if (!host || sessions.has(hostId)) {
+          // The profile is gone, or something already owns this session.
+          panel.dispose();
+          return;
+        }
+        // Started before the panel is adopted, so the webview's first request
+        // for a screen has something to reach.
+        const started = await startSidecar(host);
+        const restored = createSession(host, panel);
+        syncSession();
+        if (!started) {
+          return;
+        }
+        tree.setStatus(host.id, "connecting");
+        restored.connect();
+      },
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("tnzView.hosts.add", () => {
@@ -184,39 +273,23 @@ export function activate(context: vscode.ExtensionContext): void {
         if (existing) {
           existing.reveal();
           const status = tree.getStatus(host.id);
-          if (status !== "connected" && status !== "connecting") {
-            tree.setStatus(host.id, "connecting");
-            existing.connect();
+          if (status === "connected" || status === "connecting") {
+            return;
           }
+          // The sidecar may have died under an open panel, so reconnecting
+          // has to be able to bring the process back.
+          if (!(await startSidecar(host))) {
+            return;
+          }
+          tree.setStatus(host.id, "connecting");
+          existing.connect();
           return;
         }
-        try {
-          await sidecar.ensureStarted();
-        } catch (err) {
-          reportError("start sidecar", err);
-          tree.setStatus(host.id, "disconnected");
+        if (!(await startSidecar(host))) {
           return;
         }
         tree.setStatus(host.id, "connecting");
-        const panel = new SessionPanel(
-          sidecar,
-          host,
-          context.extensionUri,
-          macrosDir,
-          {
-            onDispose: () => {
-              sessions.delete(host.id);
-              if (focusedId === host.id) {
-                focusedId = undefined;
-              }
-              tree.setStatus(host.id, "disconnected");
-              syncSession();
-            },
-            onViewState: syncSession,
-          }
-        );
-        sessions.set(host.id, panel);
-        focusedId = host.id;
+        const panel = createSession(host);
         panel.connect();
         // A new panel is active straight away, but onDidChangeViewState only
         // fires on a change, so the context key has to be set here too.
@@ -246,6 +319,11 @@ export function activate(context: vscode.ExtensionContext): void {
       const panel = focusedId ? sessions.get(focusedId) : undefined;
       panel?.sendAid("attn");
     }),
+    // A webview sees a key press itself and VS Code resolves its own
+    // keybindings from the same press, so F5 reached both TSO and the
+    // debugger. Claiming the chord for a command that does nothing leaves the
+    // webview's copy of the key as the only thing that acts on it.
+    vscode.commands.registerCommand("tnzView.session.keyGuard", () => {}),
     vscode.commands.registerCommand("tnzView.showKeymap", () => {
       showKeymap(context.extensionUri);
     }),

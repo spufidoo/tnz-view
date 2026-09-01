@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 const vscode = acquireVsCodeApi();
 
 // IBM PCOMM defaults, overridden per host from the settings tab.
@@ -685,3 +688,11 @@ fit();
 paint();
 setOia();
 screenEl.focus();
+
+// Kept so VS Code can hand this panel back to the right host after a window
+// reload; the extension reads it from the serialized state.
+vscode.setState({ hostId: config.hostId || "" });
+
+// The grid starts empty, and the host only sends a screen when it changes, so
+// ask for the current one. Also covers a webview reloaded after being hidden.
+vscode.postMessage({ op: "ready" });

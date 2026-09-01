@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as vscode from "vscode";
 // Type-only: session.ts imports buildParms from here, and a value import
 // would close the cycle at runtime.
@@ -26,7 +29,7 @@ export function getSyntax(): TransferSyntax {
  */
 export function buildParms(
   req: TransferRequest,
-  syntax: TransferSyntax = "tso"
+  syntax: TransferSyntax
 ): string {
   const options = [
     ...(req.text ? ["ASCII", "CRLF"] : []),

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as path from "path";
 import * as vscode from "vscode";
 import { AID_NAMES, NAV_NAMES } from "./keymap";

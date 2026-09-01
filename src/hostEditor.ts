@@ -1,7 +1,11 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import * as vscode from "vscode";
 import { normalizeColors } from "./hosts";
 import { getDefaultFontFamily } from "./session";
 import { HostProfile } from "./types";
+import { getNonce } from "./webview";
 
 type SaveHandler = (host: HostProfile) => Promise<void>;
 
@@ -312,13 +316,4 @@ function validatePsSize(value: string): string | undefined {
     return "Screen size is too large for a 3270 buffer (max 16383 cells).";
   }
   return undefined;
-}
-
-function getNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let s = "";
-  for (let i = 0; i < 32; i++) {
-    s += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return s;
 }

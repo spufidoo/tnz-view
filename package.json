@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "icon": "media/icon.png",
@@ -24,7 +24,7 @@
     "ISPF"
   ],
   "activationEvents": [
-    "onView:tnzView.hosts"
+    "onWebviewPanel:tnzView.session"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -296,14 +296,169 @@
     },
     "keybindings": [
       {
-        "command": "tnzView.session.clear",
-        "key": "pause",
-        "when": "tnzView.sessionActive"
+        "command": "tnzView.session.keyGuard",
+        "key": "f1",
+        "when": "activeWebviewPanelId == tnzView.session"
       },
       {
-        "command": "tnzView.session.attn",
+        "command": "tnzView.session.keyGuard",
+        "key": "f2",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f3",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f4",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f5",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f6",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f7",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f8",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f9",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f10",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f11",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "f12",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f1",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f2",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f3",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f4",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f5",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f6",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f7",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f8",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f9",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f10",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f11",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "shift+f12",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+1",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+2",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+3",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
         "key": "alt+a",
-        "when": "tnzView.sessionActive"
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+c",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+left",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+right",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "alt+delete",
+        "when": "activeWebviewPanelId == tnzView.session"
+      },
+      {
+        "command": "tnzView.session.keyGuard",
+        "key": "ctrl+r",
+        "when": "activeWebviewPanelId == tnzView.session"
       }
     ]
   },

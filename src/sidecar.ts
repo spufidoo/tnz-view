@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Marcus Davage
+// SPDX-License-Identifier: Apache-2.0
+
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { EventEmitter } from "events";
 import * as fs from "fs";

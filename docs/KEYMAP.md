@@ -189,6 +189,31 @@ desktops.
 override is listed. A typo in the chord adds a new binding rather than replacing
 one, so the default stays in place.
 
+**A chord does the 3270 thing *and* a VS Code thing.** Both see the same key
+press: the webview handles it, and VS Code separately resolves its own
+keybindings from it, so F5 used to send PF5 and start the debugger. Every
+default chord that VS Code also binds — F1 to F12 with and without Shift,
+`alt+1` to `alt+3`, `alt+a`, `alt+c`, `alt+left`, `alt+right`, `alt+delete`
+and `ctrl+r` — is claimed for `tnzView.session.keyGuard`, a command that does
+nothing, whenever a 3270 tab has focus. That leaves the webview as the only
+handler. One consequence: F1 no longer opens the command palette in a session
+tab, because it is PF1. Ctrl+Shift+P still does.
+
+A chord you add yourself is not covered, so claim it the same way in Keyboard
+Shortcuts (`keybindings.json`):
+
+```json
+{
+  "key": "ctrl+shift+e",
+  "command": "tnzView.session.keyGuard",
+  "when": "activeWebviewPanelId == tnzView.session"
+}
+```
+
+`tnzView.sessionActive` is also available as a `when` clause. It is true while a
+session tab is open rather than only while it has focus, so prefer
+`activeWebviewPanelId` for guards.
+
 **An action name is rejected.** Names are case-sensitive and take the form
 `kind:name` from the tables above. An unknown `aid:` or `nav:` name surfaces as
 an error on the status line when you press the key.
