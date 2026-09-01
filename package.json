@@ -2,7 +2,7 @@
   "name": "tnz-view",
   "displayName": "TNZ 3270",
   "description": "Native 3270 terminal view for VS Code and Cursor, powered by IBM tnz.",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "publisher": "mdavage",
   "license": "Apache-2.0",
   "icon": "media/icon.png",

@@ -188,6 +188,126 @@ for you; this is what it writes.
 Passwords are never stored in a profile. Log on in the 3270 screen, or use a script
 macro that prompts with `ask_password`.
 
+## Example
+
+A working extract from a user `settings.json`. Hosts, fonts, macros, and keymap
+overrides sit alongside each other; anything not listed here uses the defaults
+above (`tnzView.selection` is `block`, transfers use TSO syntax). Three of the
+profiles are shown so the shape is obvious: a dark BMC session with its own font,
+a light Compuware session that inherits the global font, and a TLS host on a
+non-standard port.
+
+Do not put a password in a tape. The `mypassword` entry below is a placeholder;
+the original used `[password:Password]` (or `ask_password` in a script) instead.
+
+```json
+{
+    "tnzView.hosts": [
+        {
+            "id": "f7ea3eb2-77e1-4277-bc7b-848c78a75eb6",
+            "label": "DB2B",
+            "group": "BMC",
+            "host": "db2b",
+            "port": 23,
+            "secure": false,
+            "verifyCert": true,
+            "luName": "",
+            "tn3270e": true,
+            "codePage": "037",
+            "psSize": "43x80",
+            "extendedColor": true,
+            "blink": true,
+            "colors": {
+                "background": "#000000",
+                "black": "#000000",
+                "blue": "#7890f0",
+                "red": "#f01818",
+                "pink": "#ff00ff",
+                "green": "#24d830",
+                "turquoise": "#58f0f0",
+                "yellow": "#ffff00",
+                "white": "#ffffff"
+            },
+            "fontFamily": "Consolas"
+        },
+        {
+            "id": "934a857f-0742-4933-87cd-5a445bab2c73",
+            "label": "CW01",
+            "group": "Compuware",
+            "host": "cw01",
+            "port": 23,
+            "secure": false,
+            "verifyCert": true,
+            "luName": "",
+            "tn3270e": true,
+            "codePage": "037",
+            "psSize": "32x80",
+            "extendedColor": true,
+            "blink": false,
+            "colors": {
+                "background": "#ffffff",
+                "black": "#000000",
+                "blue": "#7890f0",
+                "red": "#f01818",
+                "pink": "#ff00ff",
+                "green": "#24d830",
+                "turquoise": "#58f0f0",
+                "yellow": "#ffff00",
+                "white": "#bfbfbf"
+            },
+            "fontFamily": ""
+        },
+        {
+            "id": "4c3607e2-8c0f-48d5-a9d2-461ec4e70012",
+            "label": "Moshix",
+            "host": "www.moshix.tech",
+            "port": 2023,
+            "secure": true,
+            "verifyCert": true,
+            "luName": "",
+            "tn3270e": true,
+            "codePage": "037",
+            "psSize": "24x80",
+            "extendedColor": true,
+            "blink": false,
+            "colors": {
+                "background": "#ffffff",
+                "black": "#000000",
+                "blue": "#7890f0",
+                "red": "#f01818",
+                "pink": "#ff00ff",
+                "green": "#24d830",
+                "turquoise": "#58f0f0",
+                "yellow": "#baba26",
+                "white": "#d7d6d6"
+            },
+            "fontFamily": ""
+        }
+    ],
+    "tnzView.fontFamily": "Consolas",
+    "tnzView.macros": {
+        "password": "[password:Password]",
+        "probe": "[prompt:Type something]",
+        "startlpar": { "script": "startlpar" },
+        "logon": "[prompt:Userid][enter][wait][password:Password][enter][wait][enter]"
+    },
+    "tnzView.macroTrace": false,
+    "tnzView.clickMacro": "startlpar",
+    "tnzView.keymap": {
+        "ctrl+alt+p": "macro:password",
+        "pageup": "aid:pf7",
+        "pagedown": "aid:pf8",
+        "shift+pageup": "aid:pf19",
+        "shift+pagedown": "aid:pf20",
+        "shift+enter": "nav:newline"
+    }
+}
+```
+
+The rest of that user's hosts (DB2A, CW09, CW13, SYSP, ESAJ, VTHB) follow the same
+shape as DB2B or CW01: same `codePage` and `tn3270e`, with `psSize`, `group`,
+`blink`, and `colors` varying per LPAR.
+
 ## Related
 
 - [KEYMAP.md](KEYMAP.md) — chords and action names
