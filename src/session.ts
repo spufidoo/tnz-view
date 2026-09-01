@@ -24,7 +24,7 @@ export class SessionPanel {
 
   readonly sessionId: string;
   private readonly panel: vscode.WebviewPanel;
-  private insertMode = false;
+  private lost = false;
   private transferSeq = 0;
   private attemptedConnect = false;
   private reportedDead = false;
@@ -94,9 +94,6 @@ export class SessionPanel {
         void vscode.env.clipboard.writeText(String(msg.text ?? ""));
       } else if (msg.op === "macro") {
         void this.runMacro(String(msg.name ?? ""));
-      } else if (msg.op === "insert") {
-        this.insertMode = Boolean(msg.value);
-        this.setStatus();
       }
     });
   }
@@ -248,11 +245,11 @@ export class SessionPanel {
       }
       return;
     }
+    if (ev.op === "status") {
+      this.lost = Boolean(ev.seslost);
+    }
     if (ev.op === "status" || ev.op === "screen") {
       this.setStatus();
-    }
-    if (ev.op === "status" && ev.seslost) {
-      this.panel.title = `${this.host.label} (lost)`;
     }
     if (ev.op === "error" && !ev.message.includes("Input Inhibit")) {
       log().error(`session ${this.host.label}: ${ev.message}`);
@@ -362,7 +359,8 @@ export class SessionPanel {
   }
 
   connect(): void {
-    this.panel.title = this.host.label;
+    this.lost = false;
+    this.setStatus();
     this.attemptedConnect = true;
     this.reportedDead = false;
     this.send({
@@ -381,11 +379,14 @@ export class SessionPanel {
     });
   }
 
+  /**
+   * Keep the tab title to the profile name. Insert mode, TLS and the rest
+   * live in the operator information area, where a 3270 user looks for them.
+   */
   private setStatus(): void {
-    const name = this.host.label;
-    const tls = this.host.secure ? "TLS" : "plain";
-    const ins = this.insertMode ? "INS" : "REP";
-    this.panel.title = `${name} · ${ins} · ${tls}`;
+    this.panel.title = this.lost
+      ? `${this.host.label} (lost)`
+      : this.host.label;
   }
 
   private html(webview: vscode.Webview, extensionUri: vscode.Uri): string {

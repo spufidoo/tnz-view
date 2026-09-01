@@ -455,7 +455,6 @@ function chordFor(e) {
 
 function setInsert(on) {
   insertMode = on;
-  vscode.postMessage({ op: "insert", value: insertMode });
   setOia();
   positionCursor();
 }
